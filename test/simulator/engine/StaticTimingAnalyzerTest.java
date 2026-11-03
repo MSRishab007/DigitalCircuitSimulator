@@ -18,6 +18,10 @@ class StaticTimingAnalyzerTest {
         not.getOutputPin(0).connect(output);
         intermediate.addObserver(not.getInputPin(0));
 
-        new StaticTimingAnalyzer().analyze(List.of(and, not));
+        StaticTimingAnalyzer analyzer = new StaticTimingAnalyzer();
+        analyzer.analyze(List.of(and, not));
+        org.junit.jupiter.api.Assertions.assertEquals(15, analyzer.getCriticalPathDelay());
+        analyzer.analyze(List.of(and, not));
+        org.junit.jupiter.api.Assertions.assertEquals(15, analyzer.getCriticalPathDelay());
     }
 }

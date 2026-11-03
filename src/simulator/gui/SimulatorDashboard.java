@@ -15,8 +15,8 @@ import java.io.*;
 public class SimulatorDashboard extends JFrame {
     private final JTextArea editorArea;
     private final JTextArea logConsole;
+    private final WaveformPanel waveformPanel; 
     private File currentFile;
-
     public SimulatorDashboard() {
         setTitle("EDA Digital Circuit Simulator - Dashboard");
         setSize(1024, 700);
@@ -43,24 +43,31 @@ public class SimulatorDashboard extends JFrame {
         editorArea.setText(getDefaultNetlistSample());
         JScrollPane editorScroll = new JScrollPane(editorArea);
         editorScroll.setBorder(BorderFactory.createTitledBorder("HDL Netlist Editor"));
-
-        // --- Log Console (Right) ---
+// --- Tabbed Pane (Right Side) ---
+        JTabbedPane rightTabs = new JTabbedPane();
+        
+        // Tab 1: Console
         logConsole = new JTextArea();
         logConsole.setFont(new Font("Monospaced", Font.PLAIN, 13));
         logConsole.setEditable(false);
         logConsole.setBackground(new Color(25, 25, 25));
         logConsole.setForeground(new Color(0, 255, 120));
         JScrollPane logScroll = new JScrollPane(logConsole);
-        logScroll.setBorder(BorderFactory.createTitledBorder("Telemetry & Console Log"));
+        rightTabs.addTab("Telemetry Log", logScroll);
+
+        // Tab 2: Waveform Viewer
+        waveformPanel = new WaveformPanel();
+        JScrollPane waveScroll = new JScrollPane(waveformPanel);
+        waveScroll.getVerticalScrollBar().setUnitIncrement(16);
+        rightTabs.addTab("Waveform Viewer", waveScroll);
 
         // --- Split Pane Layout ---
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editorScroll, logScroll);
-        splitPane.setDividerLocation(512);
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editorScroll, rightTabs);
+        splitPane.setDividerLocation(400);
 
         setLayout(new BorderLayout());
         add(toolBar, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
-
         // --- Action Listeners ---
         openBtn.addActionListener(e -> openFile());
         saveBtn.addActionListener(e -> saveFile());
@@ -135,7 +142,10 @@ public class SimulatorDashboard extends JFrame {
 
             EventEngine engine = EventEngine.getInstance();
             engine.runSimulation();
+            engine.runSimulation();
             logger.exportFile();
+            waveformPanel.loadVcd("output.vcd");
+            
 
             log("\n===============================================");
             log("[+] SIMULATION TELEMETRY REPORT");

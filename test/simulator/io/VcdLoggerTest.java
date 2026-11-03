@@ -22,8 +22,10 @@ class VcdLoggerTest {
 
         String content = Files.readString(output);
         assertTrue(content.contains("$timescale 1ns $end"));
-        assertTrue(content.contains("$var wire 1 DATA DATA $end"));
-        assertTrue(content.contains("1DATA"));
+        assertTrue(content.contains("$scope module logic $end"));
+        assertTrue(content.contains("$var wire 1 ! DATA $end"));
+        assertTrue(content.contains("$dumpvars"));
+        assertTrue(content.contains("1!"));
         Files.deleteIfExists(output);
     }
 }
