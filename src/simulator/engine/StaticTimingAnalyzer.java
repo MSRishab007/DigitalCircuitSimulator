@@ -24,14 +24,6 @@ public class StaticTimingAnalyzer {
                     calculateMaxPath(component, new HashSet<>()));
         }
 
-        System.out.println("\n[+] STATIC TIMING ANALYSIS (STA)");
-        System.out.println("-------------------------------------------------");
-        System.out.println(String.format("%-25s %d ns", "Critical Path Delay:", criticalPathDelay));
-        if (criticalPathDelay > 0) {
-            double maxFreqMHz = 1000.0 / criticalPathDelay;
-            System.out.println(String.format("%-25s %.2f MHz", "Max Safe Clock Freq:", maxFreqMHz));
-        }
-        System.out.println("-------------------------------------------------");
     }
 
     public int getCriticalPathDelay() {
@@ -52,8 +44,8 @@ public class StaticTimingAnalyzer {
         }
 
         int maxDownstreamDelay = 0;
-        for (var outputPin : current.getOutputPins()) {
-            var connectedWire = outputPin.getConnectedWire();
+        for (simulator.core.OutputPin outPin : current.getOutputPins()) {
+            simulator.core.Wire connectedWire = outPin.getConnectedWire();
             if (connectedWire == null) {
                 continue;
             }

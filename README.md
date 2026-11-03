@@ -6,11 +6,24 @@ Value Change Dump (VCD) waveform export.
 
 ## Requirements
 
-- JDK 11 or newer
+- JDK 25 or newer
 - PowerShell on Windows, or equivalent shell commands
 - JUnit is bundled in `lib/junit-platform-console-standalone.jar`
 
-## Compile
+## Compile and test with Maven
+
+Maven is the canonical build tool for this project:
+
+```powershell
+mvn test
+```
+
+This compiles `src`, compiles every test under `test`, and runs the JUnit 5
+suite. Java 25 or newer is required.
+
+## Manual compile
+
+The following commands are useful when Maven is unavailable:
 
 ```powershell
 $out = ".build\classes"
@@ -19,7 +32,7 @@ $sources = Get-ChildItem src -Recurse -Filter *.java | ForEach-Object FullName
 javac -d $out $sources
 ```
 
-## Run tests
+## Run tests manually
 
 ```powershell
 $out = ".build\classes"

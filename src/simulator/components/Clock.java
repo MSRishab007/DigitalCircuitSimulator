@@ -11,8 +11,8 @@ public class Clock extends DigitalComponent {
 
     public Clock(String id, int period) {
         super(id, 0, 1); // 0 inputs, 1 output
-        if (period < 2) {
-            throw new IllegalArgumentException("Clock period must be at least 2 ns");
+        if (period < 2 || period % 2 != 0) {
+            throw new IllegalArgumentException("Clock period must be an even number of at least 2 ns");
         }
         this.halfPeriod = period / 2;
     }

@@ -23,103 +23,113 @@ public class NetlistParser {
     }
 
     public void parse(String filepath) throws IOException {
-        wires.clear();
-        components.clear();
-        macros.clear();
-        EventEngine.getInstance().resetEngine();
-        try (BufferedReader reader = new BufferedReader(new FileReader(filepath))) {
-            String line;
-            int lineNumber = 0;
-            MacroDef currentMacro = null;
-            
-            while ((line = reader.readLine()) != null) {
-                lineNumber++;
-                line = line.trim();
-                
-                if (line.isEmpty() || line.startsWith("#")) continue;
+    try (BufferedReader reader = new BufferedReader(new FileReader(filepath))) {
+        parseReader(reader);
+    }
+}
 
-                String[] tokens = line.split("\\s+");
-                String command = tokens[0].toUpperCase();
+public void parseString(String content) {
+    try (BufferedReader reader = new BufferedReader(new java.io.StringReader(content))) {
+        parseReader(reader);
+    } catch (IOException e) {
+        throw new RuntimeException("Error reading string content", e);
+    }
+}
 
-                try {
-                    // --- MACRO RECORDING MODE ---
-                    if (command.equals("DEF")) {
-                        requireLength(tokens, 3, lineNumber, "DEF <name> <ports...>");
-                        if (currentMacro != null) {
-                            throw new IllegalArgumentException("Nested macro definitions are not supported");
-                        }
-                        currentMacro = new MacroDef();
-                        currentMacro.name = tokens[1].toUpperCase();
-                        // Ports start at index 2
-                        currentMacro.ports.addAll(Arrays.asList(tokens).subList(2, tokens.length));
-                        continue;
-                    } else if (command.equals("ENDDEF")) {
-                        if (currentMacro == null) {
-                            throw new IllegalArgumentException("ENDDEF without DEF");
-                        }
-                        macros.put(currentMacro.name, currentMacro);
-                        currentMacro = null;
-                        continue;
-                    }
+private void parseReader(BufferedReader reader) throws IOException {
+    wires.clear();
+    components.clear();
+    macros.clear();
+    EventEngine.getInstance().resetEngine();
+    
+    String line;
+    int lineNumber = 0;
+    MacroDef currentMacro = null;
+    
+    while ((line = reader.readLine()) != null) {
+        lineNumber++;
+        line = line.trim();
+        
+        if (line.isEmpty() || line.startsWith("#")) continue;
 
-                    if (currentMacro != null) {
-                        currentMacro.bodyLines.add(line);
-                        continue;
-                    }
+        String[] tokens = line.split("\\s+");
+        String command = tokens[0].toUpperCase();
 
-                    // --- STANDARD EXECUTION MODE ---
-                    if (command.equals("SIM_TIME")) {
-                        requireLength(tokens, 2, lineNumber, "SIM_TIME <nanoseconds>");
-                        EventEngine.getInstance().setMaxSimulationTime(Long.parseLong(tokens[1]));
-                        EventEngine.getInstance().resetEngine();
-                    } 
-                    else if (command.equals("WIRE")) {
-                        requireLength(tokens, 2, lineNumber, "WIRE <name>");
-                        if (wires.containsKey(tokens[1])) {
-                            throw new IllegalArgumentException("Duplicate wire: " + tokens[1]);
-                        }
-                        wires.put(tokens[1], new Wire(tokens[1]));
-                    } 
-                    else if (command.equals("FAULT")) {
-                        requireLength(tokens, 3, lineNumber, "FAULT <STUCK_AT_0|STUCK_AT_1> <wire>");
-                        String type = tokens[1].toUpperCase();
-                        Wire target = getWire(tokens[2]);
-                        if (type.equals("STUCK_AT_0")) FaultInjector.stuckAtZero(target);
-                        else if (type.equals("STUCK_AT_1")) FaultInjector.stuckAtOne(target);
-                        else throw new IllegalArgumentException("Unsupported fault type: " + type);
-                    }
-                    else if (command.equals("STIMULUS")) {
-                        requireLength(tokens, 4, lineNumber, "STIMULUS <time> <wire> <0|1|Z>");
-                        long time = Long.parseLong(tokens[1]);
-                        if (time < 0) throw new IllegalArgumentException("Stimulus time cannot be negative");
-                        Wire target = getWire(tokens[2]);
-                        simulator.core.VoltageState state;
-                        if (tokens[3].equals("1")) state = simulator.core.VoltageState.HIGH;
-                        else if (tokens[3].equals("0")) state = simulator.core.VoltageState.LOW;
-                        else if (tokens[3].equalsIgnoreCase("Z")) state = simulator.core.VoltageState.HIGH_Z;
-                        else throw new IllegalArgumentException("Stimulus must be 0, 1, or Z");
-                        EventEngine.getInstance().scheduleEvent(new simulator.engine.SignalEvent(time, target, state));
-                    }
-                    else if (macros.containsKey(command)) {
-                        // Expand Macro
-                        instantiateMacro(macros.get(command), tokens);
-                    } 
-                    else {
-                        if (tokens.length < 2) {
-                            throw new IllegalArgumentException("Unknown command: " + command);
-                        }
-                        instantiateGate(tokens, "", new HashMap<>());
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Syntax error at line " + lineNumber + ": " + line, e);
+        try {
+            // --- MACRO RECORDING MODE ---
+            if (command.equals("DEF")) {
+                requireLength(tokens, 3, lineNumber, "DEF <name> <ports...>");
+                if (currentMacro != null) {
+                    throw new IllegalArgumentException("Nested macro definitions are not supported");
                 }
+                currentMacro = new MacroDef();
+                currentMacro.name = tokens[1].toUpperCase();
+                currentMacro.ports.addAll(Arrays.asList(tokens).subList(2, tokens.length));
+                continue;
+            } else if (command.equals("ENDDEF")) {
+                if (currentMacro == null) {
+                    throw new IllegalArgumentException("ENDDEF without DEF");
+                }
+                macros.put(currentMacro.name, currentMacro);
+                currentMacro = null;
+                continue;
             }
+
             if (currentMacro != null) {
-                throw new IllegalArgumentException("Missing ENDDEF for macro: " + currentMacro.name);
+                currentMacro.bodyLines.add(line);
+                continue;
             }
+
+            // --- STANDARD EXECUTION MODE ---
+            if (command.equals("SIM_TIME")) {
+                requireLength(tokens, 2, lineNumber, "SIM_TIME <nanoseconds>");
+                EventEngine.getInstance().resetEngine();
+                EventEngine.getInstance().setMaxSimulationTime(Long.parseLong(tokens[1]));
+            } 
+            else if (command.equals("WIRE")) {
+                requireLength(tokens, 2, lineNumber, "WIRE <name>");
+                if (wires.containsKey(tokens[1])) {
+                    throw new IllegalArgumentException("Duplicate wire: " + tokens[1]);
+                }
+                wires.put(tokens[1], new Wire(tokens[1]));
+            } 
+            else if (command.equals("FAULT")) {
+                requireLength(tokens, 3, lineNumber, "FAULT <STUCK_AT_0|STUCK_AT_1> <wire>");
+                String type = tokens[1].toUpperCase();
+                Wire target = getWire(tokens[2]);
+                if (type.equals("STUCK_AT_0")) FaultInjector.stuckAtZero(target);
+                else if (type.equals("STUCK_AT_1")) FaultInjector.stuckAtOne(target);
+                else throw new IllegalArgumentException("Unsupported fault type: " + type);
+            }
+            else if (command.equals("STIMULUS")) {
+                requireLength(tokens, 4, lineNumber, "STIMULUS <time> <wire> <0|1|Z>");
+                long time = Long.parseLong(tokens[1]);
+                if (time < 0) throw new IllegalArgumentException("Stimulus time cannot be negative");
+                Wire target = getWire(tokens[2]);
+                simulator.core.VoltageState state;
+                if (tokens[3].equals("1")) state = simulator.core.VoltageState.HIGH;
+                else if (tokens[3].equals("0")) state = simulator.core.VoltageState.LOW;
+                else if (tokens[3].equalsIgnoreCase("Z")) state = simulator.core.VoltageState.HIGH_Z;
+                else throw new IllegalArgumentException("Stimulus must be 0, 1, or Z");
+                EventEngine.getInstance().scheduleEvent(new simulator.engine.SignalEvent(time, target, state));
+            }
+            else if (macros.containsKey(command)) {
+                instantiateMacro(macros.get(command), tokens);
+            } 
+            else {
+                if (tokens.length < 2) {
+                    throw new IllegalArgumentException("Unknown command: " + command);
+                }
+                instantiateGate(tokens, "", new HashMap<>());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Syntax error at line " + lineNumber + ": " + line, e);
         }
     }
-
+    if (currentMacro != null) {
+        throw new IllegalArgumentException("Missing ENDDEF for macro: " + currentMacro.name);
+    }
+}
     private void instantiateMacro(MacroDef macro, String[] args) {
         if (args.length != macro.ports.size() + 2) {
             throw new IllegalArgumentException("Macro " + macro.name + " expects " +

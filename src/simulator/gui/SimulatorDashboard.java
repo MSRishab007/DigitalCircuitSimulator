@@ -7,6 +7,7 @@ import simulator.engine.StaticTimingAnalyzer;
 import simulator.io.VcdLogger;
 import simulator.parser.NetlistParser;
 import simulator.parser.TopologyValidator;
+import simulator.parser.SimulationRunner;
 
 import javax.swing.*;
 import java.awt.*;
@@ -109,60 +110,38 @@ public class SimulatorDashboard extends JFrame {
         log("===============================================");
         log("[+] INITIALIZING SIMULATION");
         log("===============================================");
-
-        try {
-            // Save temporary netlist execution file
-            File tempNetlist = File.createTempFile("temp_sim", ".netlist");
-            try (BufferedWriter w = new BufferedWriter(new FileWriter(tempNetlist))) {
-                editorArea.write(w);
+        final String netlist = editorArea.getText();
+        final String waveformPath = new File("output.vcd").getAbsolutePath();
+        new SwingWorker<SimulationRunner.SimulationResult, Void>() {
+            @Override
+            protected SimulationRunner.SimulationResult doInBackground() {
+                return new SimulationRunner().runString(netlist, waveformPath);
             }
 
-            NetlistParser parser = new NetlistParser();
-            parser.parse(tempNetlist.getAbsolutePath());
-
-            TopologyValidator validator = new TopologyValidator();
-            if (!validator.validateNoCombinationalLoops(parser.getComponents())) {
-                log("FATAL: Unclocked combinational loop detected!");
-                return;
-            }
-
-            StaticTimingAnalyzer sta = new StaticTimingAnalyzer();
-            sta.analyze(parser.getComponents());
-
-            VcdLogger logger = new VcdLogger("output.vcd");
-            for (var wire : parser.getAllWires()) {
-                logger.monitorWire(wire);
-            }
-
-            for (DigitalComponent component : parser.getComponents()) {
-                if (component instanceof Clock) {
-                    ((Clock) component).generateClockPulses();
+            @Override
+            protected void done() {
+                try {
+                    SimulationRunner.SimulationResult result = get();
+                    waveformPanel.loadVcd(waveformPath);
+                    log("\n===============================================");
+                    log("[+] SIMULATION TELEMETRY REPORT");
+                    log("===============================================");
+                    log(String.format("%-25s %d nodes", "Circuit Topology:",
+                            result.getWireCount() + result.getComponentCount()));
+                    log(String.format("%-25s %d events", "Total Events Processed:",
+                            result.getEventsProcessed()));
+                    log(String.format("%-25s %d", "Peak Queue Depth:",
+                            result.getPeakQueueDepth()));
+                    log(String.format("%-25s %d ms", "CPU Compute Time:",
+                            result.getComputeTimeMillis()));
+                    log(String.format("%-25s %s", "Waveform Exported:", waveformPath));
+                    log("===============================================");
+                } catch (Exception ex) {
+                    Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+                    log("\n[!] SIMULATION FAILED: " + cause.getMessage());
                 }
             }
-
-            EventEngine engine = EventEngine.getInstance();
-            engine.runSimulation();
-            engine.runSimulation();
-            logger.exportFile();
-            waveformPanel.loadVcd("output.vcd");
-            
-
-            log("\n===============================================");
-            log("[+] SIMULATION TELEMETRY REPORT");
-            log("===============================================");
-            log(String.format("%-25s %d nodes", "Circuit Topology:", parser.getAllWires().size() + parser.getComponents().size()));
-            log(String.format("%-25s %d ns", "Max Simulated Time:", engine.getMaxSimulationTime()));
-            log(String.format("%-25s %d events", "Total Events Processed:", engine.getTotalEventsProcessed()));
-            log(String.format("%-25s %d", "Peak Queue Depth:", engine.getPeakQueueDepth()));
-            log(String.format("%-25s %d ms", "CPU Compute Time:", engine.getComputeTimeMillis()));
-            log(String.format("%-25s %s", "Waveform Exported:", "output.vcd"));
-            log("===============================================");
-
-            tempNetlist.deleteOnExit();
-
-        } catch (Exception ex) {
-            log("\n[!] SIMULATION FAILED: " + ex.getMessage());
-        }
+        }.execute();
     }
 
     private void log(String message) {

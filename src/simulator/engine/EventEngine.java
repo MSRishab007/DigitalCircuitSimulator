@@ -27,6 +27,7 @@ public class EventEngine {
     public void resetEngine() {
         eventQueue.clear();
         currentTime = 0;
+        maxSimulationTime = 1000;
         totalEventsProcessed = 0;
         peakQueueDepth = 0;
         computeTimeMillis = 0;

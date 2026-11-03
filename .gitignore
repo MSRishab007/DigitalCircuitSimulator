@@ -1,0 +1,17 @@
+# Maven and Java build output
+target/
+.build/
+*.class
+
+# Generated simulator artifacts
+*.vcd
+Simulator.jar
+manifest.txt
+index.html
+
+# IDE metadata
+.idea/
+*.iml
+.project
+.classpath
+.settings/

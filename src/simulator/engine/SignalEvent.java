@@ -4,7 +4,9 @@ import simulator.core.VoltageState;
 import simulator.core.Wire;
 
 public class SignalEvent implements Comparable<SignalEvent> {
+    private static long nextSequence;
     private final long executionTime;
+    private final long sequence;
     private final Wire targetWire;
     private final VoltageState newState;
     private final Object driver;
@@ -15,6 +17,7 @@ public class SignalEvent implements Comparable<SignalEvent> {
 
     public SignalEvent(long executionTime, Wire targetWire, VoltageState newState, Object driver) {
         this.executionTime = executionTime;
+        this.sequence = nextSequence++;
         this.targetWire = targetWire;
         this.newState = newState;
         this.driver = driver;
@@ -39,6 +42,7 @@ public class SignalEvent implements Comparable<SignalEvent> {
     @Override
     public int compareTo(SignalEvent other) {
         // This ensures events are processed in chronological order
-        return Long.compare(this.executionTime, other.executionTime);
+        int timeComparison = Long.compare(this.executionTime, other.executionTime);
+        return timeComparison != 0 ? timeComparison : Long.compare(this.sequence, other.sequence);
     }
 }
