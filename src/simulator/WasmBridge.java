@@ -12,14 +12,19 @@ public class WasmBridge {
         try {
             SimulationRunner.SimulationResult result =
                     new SimulationRunner().runString(netlist, null);
-            return "Simulation Complete!\n" +
-                   "Wires mapped: " + result.getWireCount() + "\n" +
-                   "Components loaded: " + result.getComponentCount() + "\n" +
-                   "Events processed: " + result.getEventsProcessed() + "\n" +
-                   "Max critical path delay: " + result.getCriticalPathDelay() + "ns";
-                   
+            return result.toJson();
         } catch (Exception e) {
-            return "SIMULATION ERROR: " + e.getMessage();
+            return "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}";
         }
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "Unknown simulation error";
+        }
+        return value.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n");
     }
 }

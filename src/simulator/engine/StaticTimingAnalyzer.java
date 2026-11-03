@@ -16,14 +16,17 @@ public class StaticTimingAnalyzer {
     private final Map<DigitalComponent, Integer> pathDelays = new HashMap<>();
     private int criticalPathDelay;
 
-    public void analyze(List<DigitalComponent> components) {
+    public TimingAnalysisResult analyze(List<DigitalComponent> components) {
+        if (components == null) {
+            throw new IllegalArgumentException("Components cannot be null");
+        }
         pathDelays.clear();
         criticalPathDelay = 0;
         for (DigitalComponent component : components) {
             criticalPathDelay = Math.max(criticalPathDelay,
                     calculateMaxPath(component, new HashSet<>()));
         }
-
+        return new TimingAnalysisResult(criticalPathDelay);
     }
 
     public int getCriticalPathDelay() {

@@ -54,4 +54,10 @@ class EventEngineTest {
         assertEquals(VoltageState.UNKNOWN, testWire.getCurrentState());
         assertEquals(0, engine.getTotalEventsProcessed());
     }
+
+    @Test
+    void rejectsNegativeEventTimes() {
+        assertThrows(IllegalArgumentException.class, () ->
+                engine.scheduleEvent(new SignalEvent(-1, new Wire("A"), VoltageState.HIGH)));
+    }
 }

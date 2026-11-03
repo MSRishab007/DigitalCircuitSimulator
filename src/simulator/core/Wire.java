@@ -22,7 +22,12 @@ public class Wire {
     }
 
     public void addObserver(SignalObserver observer) {
-        observers.add(observer);
+        if (observer == null) {
+            throw new IllegalArgumentException("Wire observer cannot be null");
+        }
+        if (!observers.contains(observer)) {
+            observers.add(observer);
+        }
     }
 
     public void injectStuckAtFault(VoltageState faultState) {
@@ -59,6 +64,22 @@ public class Wire {
         if (resolvedState != currentState) {
             currentState = resolvedState;
             notifyObservers();
+        }
+    }
+
+    public void release(Object driver) {
+        if (driver == null) {
+            throw new IllegalArgumentException("Wire driver cannot be null");
+        }
+        if (stuckAtState != null) {
+            return;
+        }
+        if (driverStates.remove(driver) != null) {
+            VoltageState resolvedState = resolveDrivers();
+            if (resolvedState != currentState) {
+                currentState = resolvedState;
+                notifyObservers();
+            }
         }
     }
 

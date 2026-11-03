@@ -13,6 +13,7 @@ import simulator.components.XorGate;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentFactoryTest {
     @Test
@@ -32,5 +33,13 @@ class ComponentFactoryTest {
     void rejectsUnsupportedComponentType() {
         assertThrows(IllegalArgumentException.class,
                 () -> ComponentFactory.createComponent("UNKNOWN", "id", 1));
+    }
+
+    @Test
+    void exposesRegisteredCreatorsAndSupportsExtension() {
+        assertTrue(ComponentFactory.registeredComponents().containsKey("AND"));
+        ComponentFactory.register("TEST", (id, delay) -> new AndGate(id, delay));
+
+        assertInstanceOf(AndGate.class, ComponentFactory.createComponent("test", "custom", 2));
     }
 }

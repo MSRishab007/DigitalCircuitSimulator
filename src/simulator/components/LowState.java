@@ -9,6 +9,9 @@ public class LowState implements MemoryState {
         if (dataInput == VoltageState.HIGH) {
             return new HighState(); // Transition to HighState
         }
+        if (dataInput == VoltageState.UNKNOWN || dataInput == VoltageState.HIGH_Z) {
+            return new UnknownState();
+        }
         return this; // Remain in LowState
     }
 

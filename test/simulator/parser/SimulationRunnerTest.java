@@ -14,5 +14,7 @@ class SimulationRunnerTest {
         assertEquals(0, result.getComponentCount());
         assertEquals(1, result.getEventsProcessed());
         assertEquals(0, result.getCriticalPathDelay());
+        assertEquals(true, result.toJson().contains("\"success\":true"));
+        assertEquals(true, result.getWaveform().contains("$enddefinitions $end"));
     }
 }

@@ -2,7 +2,8 @@ package simulator.parser;
 
 import simulator.core.DigitalComponent;
 import simulator.core.Wire;
-import simulator.engine.EventEngine;
+import simulator.engine.SimulationContext;
+import simulator.engine.SimulationAssertion;
 import simulator.fault.FaultInjector;
 
 import java.io.BufferedReader;
@@ -11,9 +12,21 @@ import java.io.IOException;
 import java.util.*;
 
 public class NetlistParser {
+    private final SimulationContext simulationContext;
     private final Map<String, Wire> wires = new HashMap<>();
     private final List<DigitalComponent> components = new ArrayList<>();
     private final Map<String, MacroDef> macros = new HashMap<>();
+
+    public NetlistParser() {
+        this(SimulationContext.defaultContext());
+    }
+
+    public NetlistParser(SimulationContext simulationContext) {
+        if (simulationContext == null) {
+            throw new IllegalArgumentException("Simulation context cannot be null");
+        }
+        this.simulationContext = simulationContext;
+    }
 
     // Internal class to hold Macro Blueprints
     private static class MacroDef {
@@ -40,7 +53,7 @@ private void parseReader(BufferedReader reader) throws IOException {
     wires.clear();
     components.clear();
     macros.clear();
-    EventEngine.getInstance().resetEngine();
+    simulationContext.reset();
     
     String line;
     int lineNumber = 0;
@@ -83,9 +96,16 @@ private void parseReader(BufferedReader reader) throws IOException {
             // --- STANDARD EXECUTION MODE ---
             if (command.equals("SIM_TIME")) {
                 requireLength(tokens, 2, lineNumber, "SIM_TIME <nanoseconds>");
-                EventEngine.getInstance().resetEngine();
-                EventEngine.getInstance().setMaxSimulationTime(Long.parseLong(tokens[1]));
+                simulationContext.reset();
+                simulationContext.getEventEngine().setMaxSimulationTime(Long.parseLong(tokens[1]));
             } 
+            else if (command.equals("ASSERT")) {
+                requireLength(tokens, 4, lineNumber, "ASSERT <time> <wire> <0|1|X|Z>");
+                long assertionTime = Long.parseLong(tokens[1]);
+                Wire target = getWire(tokens[2]);
+                simulationContext.addAssertion(new SimulationAssertion(
+                        assertionTime, target, parseState(tokens[3], "Assertion")));
+            }
             else if (command.equals("WIRE")) {
                 requireLength(tokens, 2, lineNumber, "WIRE <name>");
                 if (wires.containsKey(tokens[1])) {
@@ -106,12 +126,8 @@ private void parseReader(BufferedReader reader) throws IOException {
                 long time = Long.parseLong(tokens[1]);
                 if (time < 0) throw new IllegalArgumentException("Stimulus time cannot be negative");
                 Wire target = getWire(tokens[2]);
-                simulator.core.VoltageState state;
-                if (tokens[3].equals("1")) state = simulator.core.VoltageState.HIGH;
-                else if (tokens[3].equals("0")) state = simulator.core.VoltageState.LOW;
-                else if (tokens[3].equalsIgnoreCase("Z")) state = simulator.core.VoltageState.HIGH_Z;
-                else throw new IllegalArgumentException("Stimulus must be 0, 1, or Z");
-                EventEngine.getInstance().scheduleEvent(new simulator.engine.SignalEvent(time, target, state));
+                simulator.core.VoltageState state = parseStimulusState(tokens[3]);
+                simulationContext.getEventEngine().scheduleEvent(new simulator.engine.SignalEvent(time, target, state));
             }
             else if (macros.containsKey(command)) {
                 instantiateMacro(macros.get(command), tokens);
@@ -171,7 +187,7 @@ private void parseReader(BufferedReader reader) throws IOException {
             throw new IllegalArgumentException("Propagation delay cannot be negative");
         }
 
-        DigitalComponent component = ComponentFactory.createComponent(type, id, param);
+        DigitalComponent component = ComponentFactory.createComponent(type, id, param, simulationContext);
         int inputCount = tokens.length - 4;
         if (inputCount != component.getInputPins().size()) {
             throw new IllegalArgumentException(type + " expects " + component.getInputPins().size() +
@@ -194,6 +210,20 @@ private void parseReader(BufferedReader reader) throws IOException {
     }
     public List<Wire> getAllWires() { return new ArrayList<>(wires.values()); }
     public List<DigitalComponent> getComponents() { return components; }
+    public SimulationContext getSimulationContext() { return simulationContext; }
+    private static simulator.core.VoltageState parseState(String token, String kind) {
+        if (token.equals("1")) return simulator.core.VoltageState.HIGH;
+        if (token.equals("0")) return simulator.core.VoltageState.LOW;
+        if (token.equalsIgnoreCase("Z")) return simulator.core.VoltageState.HIGH_Z;
+        if (token.equalsIgnoreCase("X")) return simulator.core.VoltageState.UNKNOWN;
+        throw new IllegalArgumentException(kind + " must be 0, 1, X, or Z");
+    }
+    private static simulator.core.VoltageState parseStimulusState(String token) {
+        if (token.equals("1")) return simulator.core.VoltageState.HIGH;
+        if (token.equals("0")) return simulator.core.VoltageState.LOW;
+        if (token.equalsIgnoreCase("Z")) return simulator.core.VoltageState.HIGH_Z;
+        throw new IllegalArgumentException("Stimulus must be 0, 1, or Z");
+    }
 
     private static void requireLength(String[] tokens, int length, int lineNumber, String syntax) {
         if (tokens.length < length) {

@@ -2,14 +2,17 @@ package simulator.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import simulator.engine.SimulationContext;
 
 public abstract class DigitalComponent {
     protected String componentId;
     protected List<InputPin> inputPins;
     protected List<OutputPin> outputPins;
+    protected SimulationContext simulationContext;
 
     public DigitalComponent(String id, int numInputs, int numOutputs) {
         this.componentId = id;
+        this.simulationContext = SimulationContext.defaultContext();
         this.inputPins = new ArrayList<>();
         this.outputPins = new ArrayList<>();
         
@@ -19,6 +22,20 @@ public abstract class DigitalComponent {
         for (int i = 0; i < numOutputs; i++) {
             outputPins.add(new OutputPin());
         }
+    }
+
+    public void setSimulationContext(SimulationContext simulationContext) {
+        if (simulationContext == null) {
+            throw new IllegalArgumentException("Simulation context cannot be null");
+        }
+        this.simulationContext = simulationContext;
+        for (OutputPin outputPin : outputPins) {
+            outputPin.setSimulationContext(simulationContext);
+        }
+    }
+
+    public SimulationContext getSimulationContext() {
+        return simulationContext;
     }
 
     public abstract void evaluate();

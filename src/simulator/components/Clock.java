@@ -3,7 +3,6 @@ package simulator.components;
 import simulator.core.DigitalComponent;
 import simulator.core.VoltageState;
 import simulator.core.Wire;
-import simulator.engine.EventEngine;
 import simulator.engine.SignalEvent;
 
 public class Clock extends DigitalComponent {
@@ -27,12 +26,12 @@ public class Clock extends DigitalComponent {
         Wire targetWire = outputPins.get(0).getConnectedWire();
         if (targetWire == null) return;
 
-        long maxTime = EventEngine.getInstance().getMaxSimulationTime();
+        long maxTime = simulationContext.getEventEngine().getMaxSimulationTime();
         VoltageState state = VoltageState.LOW;
 
         // Floods the priority queue with timestamped clock edges
         for (long t = 0; t <= maxTime; t += halfPeriod) {
-            EventEngine.getInstance().scheduleEvent(new SignalEvent(t, targetWire, state, this));
+            simulationContext.getEventEngine().scheduleEvent(new SignalEvent(t, targetWire, state, this));
             state = (state == VoltageState.LOW) ? VoltageState.HIGH : VoltageState.LOW;
         }
     }

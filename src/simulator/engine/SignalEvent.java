@@ -39,6 +39,10 @@ public class SignalEvent implements Comparable<SignalEvent> {
         return driver;
     }
 
+    public static void resetSequence() {
+        nextSequence = 0;
+    }
+
     @Override
     public int compareTo(SignalEvent other) {
         // This ensures events are processed in chronological order

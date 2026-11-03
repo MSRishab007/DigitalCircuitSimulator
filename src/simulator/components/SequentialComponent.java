@@ -3,7 +3,6 @@ package simulator.components;
 import simulator.core.DigitalComponent;
 import simulator.core.VoltageState;
 import simulator.core.Wire;
-import simulator.engine.EventEngine;
 import simulator.engine.SignalEvent;
 
 public class SequentialComponent extends DigitalComponent {
@@ -49,9 +48,9 @@ public class SequentialComponent extends DigitalComponent {
         Wire targetWire = outputPins.get(0).getConnectedWire();
         
         if (targetWire != null) {
-            long executionTime = EventEngine.getInstance().getCurrentTime() + propagationDelay;
+            long executionTime = simulationContext.getEventEngine().getCurrentTime() + propagationDelay;
             SignalEvent event = new SignalEvent(executionTime, targetWire, newOutput, outputPins.get(0));
-            EventEngine.getInstance().scheduleEvent(event);
+            simulationContext.getEventEngine().scheduleEvent(event);
         }
     }
 }

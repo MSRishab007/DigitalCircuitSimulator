@@ -37,4 +37,18 @@ class SequentialComponentTest {
         assertEquals(VoltageState.HIGH, output.getCurrentState());
         assertEquals(15, engine.getCurrentTime());
     }
+
+    @Test
+    void capturesUnknownWhenDataIsUnknownOnRisingEdge() {
+        Wire clock = new Wire("CLK");
+        Wire output = new Wire("Q");
+        SequentialComponent dff = new SequentialComponent("DFF1", 0, new LowState());
+
+        clock.addObserver(dff.getInputPin(1));
+        dff.getOutputPin(0).connect(output);
+        engine.scheduleEvent(new SignalEvent(10, clock, VoltageState.HIGH));
+        engine.runSimulation();
+
+        assertEquals(VoltageState.UNKNOWN, output.getCurrentState());
+    }
 }

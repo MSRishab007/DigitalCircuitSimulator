@@ -6,7 +6,7 @@ Value Change Dump (VCD) waveform export.
 
 ## Requirements
 
-- JDK 25 or newer
+- JDK 21 or newer
 - PowerShell on Windows, or equivalent shell commands
 - JUnit is bundled in `lib/junit-platform-console-standalone.jar`
 
@@ -19,7 +19,7 @@ mvn test
 ```
 
 This compiles `src`, compiles every test under `test`, and runs the JUnit 5
-suite. Java 25 or newer is required.
+suite. Java 21 or newer is required.
 
 ## Manual compile
 
@@ -79,6 +79,39 @@ DFF register 5 DATA CLOCK_WIRE Q
 Stimulus values are `0`, `1`, or `Z`. Wires must be declared before they are
 referenced. Macro definitions use `DEF ...` and `ENDDEF`.
 
+Assertions can verify a wire at a simulation timestamp:
+
+```text
+ASSERT 20 SUM 1
+ASSERT 20 BUS X
+```
+
+`X` means an unknown or contended signal. An assertion failure stops the run
+with the failing timestamp, wire, expected value, and actual value.
+
+## CLI analysis commands
+
+```powershell
+java simulator.Main simulate circuit.netlist output.vcd
+java simulator.Main validate circuit.netlist
+java simulator.Main analyze circuit.netlist
+java simulator.Main truth-table circuit.netlist A,B SUM
+java simulator.Main equivalent circuit-a.netlist circuit-b.netlist A,B SUM
+```
+
+The simulation engine also exposes a `SimulationDebugger` API for stepping one
+event at a time, inspecting simulation time and pending-event count, and then
+resuming execution. This API is used by future GUI debugger controls without
+coupling the UI to the event queue.
+
+`truth-table` enumerates all binary combinations for the named input wires and
+prints their output states. `equivalent` compares two combinational netlists
+and returns a counterexample row when their outputs differ.
+
+The Swing dashboard now exposes the same controls through **Step Event** and
+**Reset**. Stepping updates the current simulation time, pending event count,
+and waveform viewer without restarting the session.
+
 ## Outputs
 
 The simulator validates combinational topology, runs a timestamp-ordered event
@@ -98,3 +131,35 @@ characters do not become invalid identifiers.
 
 Generated `.class` files should not be treated as source. Build output should
 be placed in a temporary or ignored directory such as `.build`.
+
+## Object-oriented design
+
+The implementation intentionally uses established object-oriented patterns:
+
+- **Observer** — `Wire` notifies `InputPin` and waveform observers when signals
+  change.
+- **Composite** — `Module` treats nested components as a reusable circuit
+  component and bridges its public pins to internal pins and wires.
+- **State** — `SequentialComponent` delegates memory behavior to
+  `MemoryState` implementations such as `LowState`, `HighState`, and
+  `UnknownState`.
+- **Factory/Registry** — `ComponentFactory` maps netlist type names to
+  registered `ComponentCreator` functions. New component types can be
+  registered without changing the creation switch.
+- **Facade** — `SimulationFacade` and `SimulationRunner` expose a small
+  application boundary for CLI, GUI, and WebAssembly clients.
+- **Dependency Injection** — `SimulationContext` owns the event engine for one
+  run. `SimulationRunner` creates a fresh context per invocation, while
+  components, parsers, and VCD loggers receive that context instead of looking
+  up global state.
+- **Value Object** — `TimingAnalysisResult` and `SimulationResult` carry
+  structured analysis and execution results instead of requiring callers to
+  parse console output.
+- **Strategy seam** — wire driver resolution and timing analysis are isolated
+  behind focused services so their policies can evolve independently.
+
+New functionality should preserve these boundaries. Prefer explicit context
+dependencies and small interfaces over direct global lookups, and add tests
+for each public object contract. Legacy constructors remain available and use
+the default context for compatibility; new application code should create a
+`SimulationContext` per simulation session.

@@ -2,8 +2,8 @@ package simulator.gui;
 
 import simulator.components.Clock;
 import simulator.core.DigitalComponent;
-import simulator.engine.EventEngine;
-import simulator.engine.StaticTimingAnalyzer;
+import simulator.engine.SimulationContext;
+import simulator.engine.SimulationDebugger;
 import simulator.io.VcdLogger;
 import simulator.parser.NetlistParser;
 import simulator.parser.TopologyValidator;
@@ -17,6 +17,15 @@ public class SimulatorDashboard extends JFrame {
     private final JTextArea editorArea;
     private final JTextArea logConsole;
     private final WaveformPanel waveformPanel; 
+    private final JButton runBtn;
+    private final JButton stepBtn;
+    private final JButton resetBtn;
+    private final JLabel statusLabel;
+    private SimulationContext debugContext;
+    private SimulationDebugger debugger;
+    private NetlistParser debugParser;
+    private VcdLogger debugLogger;
+    private String debugWaveformPath;
     private File currentFile;
     public SimulatorDashboard() {
         setTitle("EDA Digital Circuit Simulator - Dashboard");
@@ -30,12 +39,19 @@ public class SimulatorDashboard extends JFrame {
 
         JButton openBtn = new JButton("Open Netlist");
         JButton saveBtn = new JButton("Save Netlist");
-        JButton runBtn = new JButton("Run Simulation");
+        runBtn = new JButton("Run Simulation");
+        stepBtn = new JButton("Step Event");
+        resetBtn = new JButton("Reset");
+        statusLabel = new JLabel("No simulation loaded");
 
         toolBar.add(openBtn);
         toolBar.add(saveBtn);
         toolBar.addSeparator();
         toolBar.add(runBtn);
+        toolBar.add(stepBtn);
+        toolBar.add(resetBtn);
+        toolBar.addSeparator();
+        toolBar.add(statusLabel);
 
         // --- Editor Pane (Left) ---
         editorArea = new JTextArea();
@@ -73,6 +89,10 @@ public class SimulatorDashboard extends JFrame {
         openBtn.addActionListener(e -> openFile());
         saveBtn.addActionListener(e -> saveFile());
         runBtn.addActionListener(e -> runSimulation());
+        stepBtn.addActionListener(e -> stepSimulation());
+        resetBtn.addActionListener(e -> resetSimulation());
+        stepBtn.setEnabled(false);
+        resetBtn.setEnabled(false);
     }
 
     private void openFile() {
@@ -142,6 +162,68 @@ public class SimulatorDashboard extends JFrame {
                 }
             }
         }.execute();
+    }
+
+    private void prepareDebugSession() {
+        debugContext = new SimulationContext();
+        debugParser = new NetlistParser(debugContext);
+        debugParser.parseString(editorArea.getText());
+        if (!new TopologyValidator().validateNoCombinationalLoops(debugParser.getComponents())) {
+            throw new IllegalStateException("Unclocked combinational loop detected");
+        }
+        debugWaveformPath = new File("debug-output.vcd").getAbsolutePath();
+        debugLogger = new VcdLogger(debugWaveformPath, debugContext);
+        debugParser.getAllWires().forEach(debugLogger::monitorWire);
+        for (DigitalComponent component : debugParser.getComponents()) {
+            if (component instanceof Clock) {
+                ((Clock) component).generateClockPulses();
+            }
+        }
+        debugger = new SimulationDebugger(debugContext);
+        stepBtn.setEnabled(true);
+        resetBtn.setEnabled(true);
+        updateDebugStatus();
+    }
+
+    private void stepSimulation() {
+        try {
+            if (debugger == null) {
+                prepareDebugSession();
+            }
+            if (!debugger.step()) {
+                log("Simulation complete.");
+                stepBtn.setEnabled(false);
+            }
+            exportDebugWaveform();
+            updateDebugStatus();
+        } catch (Exception ex) {
+            log("[!] STEP FAILED: " + ex.getMessage());
+        }
+    }
+
+    private void resetSimulation() {
+        try {
+            prepareDebugSession();
+            log("Simulation reset.");
+        } catch (Exception ex) {
+            log("[!] RESET FAILED: " + ex.getMessage());
+        }
+    }
+
+    private void exportDebugWaveform() throws IOException {
+        if (debugLogger != null) {
+            debugLogger.exportFile();
+            waveformPanel.loadVcd(debugWaveformPath);
+        }
+    }
+
+    private void updateDebugStatus() {
+        if (debugger == null) {
+            statusLabel.setText("No simulation loaded");
+            return;
+        }
+        statusLabel.setText(String.format("Time: %dns | Pending: %d",
+                debugger.getCurrentTime(), debugger.getPendingEventCount()));
     }
 
     private void log(String message) {

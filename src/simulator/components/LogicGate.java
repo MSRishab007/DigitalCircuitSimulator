@@ -3,7 +3,6 @@ package simulator.components;
 import simulator.core.DigitalComponent;
 import simulator.core.VoltageState;
 import simulator.core.Wire;
-import simulator.engine.EventEngine;
 import simulator.engine.SignalEvent;
 
 public abstract class LogicGate extends DigitalComponent {
@@ -32,11 +31,11 @@ public abstract class LogicGate extends DigitalComponent {
             
             if (targetWire != null) {
                 // 3. Schedule Event with Propagation Delay[cite: 10]
-                long currentTime = EventEngine.getInstance().getCurrentTime();
+                long currentTime = simulationContext.getEventEngine().getCurrentTime();
                 long executionTime = currentTime + propagationDelay;
                 
                 SignalEvent event = new SignalEvent(executionTime, targetWire, newState, outputPins.get(0));
-                EventEngine.getInstance().scheduleEvent(event);
+                simulationContext.getEventEngine().scheduleEvent(event);
             }
         }
         // 4. Drop Event / Do Nothing if voltage did not change
