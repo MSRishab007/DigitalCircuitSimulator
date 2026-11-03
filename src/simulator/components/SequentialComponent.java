@@ -9,6 +9,7 @@ import simulator.engine.SignalEvent;
 public class SequentialComponent extends DigitalComponent {
     private MemoryState currentState;
     private final int propagationDelay;
+    private VoltageState previousClockState = VoltageState.UNKNOWN;
 
     public SequentialComponent(String id, int delay, MemoryState initialState) {
         // Example: D Flip-Flop has 1 Data Input, 1 Clock Input, 1 Output
@@ -30,6 +31,18 @@ public class SequentialComponent extends DigitalComponent {
     }
 
     @Override
+    public void inputChanged(simulator.core.InputPin pin, VoltageState newState) {
+        if (pin == inputPins.get(1)) {
+            if (previousClockState != VoltageState.HIGH && newState == VoltageState.HIGH) {
+                clockPulse();
+            }
+            previousClockState = newState;
+            return;
+        }
+        evaluate();
+    }
+
+    @Override
     public void evaluate() {
         // Output functions evaluate asynchronously to generate the final electrical signal[cite: 3]
         VoltageState newOutput = currentState.getOutputVoltage();
@@ -37,7 +50,7 @@ public class SequentialComponent extends DigitalComponent {
         
         if (targetWire != null) {
             long executionTime = EventEngine.getInstance().getCurrentTime() + propagationDelay;
-            SignalEvent event = new SignalEvent(executionTime, targetWire, newOutput);
+            SignalEvent event = new SignalEvent(executionTime, targetWire, newOutput, outputPins.get(0));
             EventEngine.getInstance().scheduleEvent(event);
         }
     }

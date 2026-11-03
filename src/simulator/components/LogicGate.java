@@ -35,7 +35,7 @@ public abstract class LogicGate extends DigitalComponent {
                 long currentTime = EventEngine.getInstance().getCurrentTime();
                 long executionTime = currentTime + propagationDelay;
                 
-                SignalEvent event = new SignalEvent(executionTime, targetWire, newState);
+                SignalEvent event = new SignalEvent(executionTime, targetWire, newState, outputPins.get(0));
                 EventEngine.getInstance().scheduleEvent(event);
             }
         }

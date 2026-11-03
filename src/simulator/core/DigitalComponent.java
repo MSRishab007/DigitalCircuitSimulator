@@ -22,6 +22,10 @@ public abstract class DigitalComponent {
     }
 
     public abstract void evaluate();
+
+    public void inputChanged(InputPin pin, VoltageState newState) {
+        evaluate();
+    }
     
     public String getComponentId() {
         return componentId;
@@ -42,5 +46,9 @@ public abstract class DigitalComponent {
     }
     public List<OutputPin> getOutputPins() {
         return outputPins;
+    }
+
+    public List<InputPin> getInputPins() {
+        return inputPins;
     }
 }

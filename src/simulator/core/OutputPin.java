@@ -1,5 +1,8 @@
 package simulator.core;
 
+import simulator.engine.EventEngine;
+import simulator.engine.SignalEvent;
+
 public class OutputPin {
     private Wire connectedWire;
     
@@ -9,7 +12,14 @@ public class OutputPin {
     
     public void driveSignal(VoltageState state) {
         if (connectedWire != null) {
-            connectedWire.updateVoltage(state);
+            connectedWire.drive(this, state);
+        }
+    }
+
+    public void scheduleSignal(long executionTime, VoltageState state) {
+        if (connectedWire != null) {
+            EventEngine.getInstance().scheduleEvent(
+                    new SignalEvent(executionTime, connectedWire, state, this));
         }
     }
 

@@ -11,6 +11,9 @@ public class Clock extends DigitalComponent {
 
     public Clock(String id, int period) {
         super(id, 0, 1); // 0 inputs, 1 output
+        if (period < 2) {
+            throw new IllegalArgumentException("Clock period must be at least 2 ns");
+        }
         this.halfPeriod = period / 2;
     }
 
@@ -29,7 +32,7 @@ public class Clock extends DigitalComponent {
 
         // Floods the priority queue with timestamped clock edges
         for (long t = 0; t <= maxTime; t += halfPeriod) {
-            EventEngine.getInstance().scheduleEvent(new SignalEvent(t, targetWire, state));
+            EventEngine.getInstance().scheduleEvent(new SignalEvent(t, targetWire, state, this));
             state = (state == VoltageState.LOW) ? VoltageState.HIGH : VoltageState.LOW;
         }
     }

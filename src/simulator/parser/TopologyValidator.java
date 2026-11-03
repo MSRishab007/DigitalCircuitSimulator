@@ -5,6 +5,7 @@ import simulator.core.OutputPin;
 import simulator.core.Wire;
 import simulator.components.SequentialComponent;
 import simulator.core.InputPin;
+import simulator.core.SignalObserver;
 
 import java.util.HashSet;
 import java.util.List;
@@ -45,8 +46,12 @@ public class TopologyValidator {
         for (OutputPin outputPin : current.getOutputPins()) { // Direct access per DigitalComponent spec
             Wire wire = outputPin.getConnectedWire();
             if (wire != null) {
-                // Find components listening to this wire (simplified traversal representation)
-                // In a full implementation, you would map Wires back to downstream InputPins/Components
+                for (SignalObserver observer : wire.getObservers()) {
+                    if (observer instanceof InputPin &&
+                            hasCycle(((InputPin) observer).getParentComponent(), visited, recursionStack)) {
+                        return true;
+                    }
+                }
             }
         }
 

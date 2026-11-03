@@ -7,11 +7,17 @@ public class SignalEvent implements Comparable<SignalEvent> {
     private final long executionTime;
     private final Wire targetWire;
     private final VoltageState newState;
+    private final Object driver;
 
     public SignalEvent(long executionTime, Wire targetWire, VoltageState newState) {
+        this(executionTime, targetWire, newState, SignalEvent.class);
+    }
+
+    public SignalEvent(long executionTime, Wire targetWire, VoltageState newState, Object driver) {
         this.executionTime = executionTime;
         this.targetWire = targetWire;
         this.newState = newState;
+        this.driver = driver;
     }
 
     public long getExecutionTime() {
@@ -24,6 +30,10 @@ public class SignalEvent implements Comparable<SignalEvent> {
 
     public VoltageState getNewState() {
         return newState;
+    }
+
+    public Object getDriver() {
+        return driver;
     }
 
     @Override

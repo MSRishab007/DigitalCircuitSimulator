@@ -12,7 +12,7 @@ public class InputPin implements SignalObserver {
     @Override
     public void update(Wire source, VoltageState newState) {
         this.currentState = newState;
-        parentComponent.evaluate();
+        parentComponent.inputChanged(this, newState);
     }
 
     public VoltageState getCurrentState() { return currentState; }

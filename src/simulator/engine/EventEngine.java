@@ -51,7 +51,7 @@ public class EventEngine {
             }
 
             currentTime = currentEvent.getExecutionTime();
-            currentEvent.getTargetWire().updateVoltage(currentEvent.getNewState());
+            currentEvent.getTargetWire().drive(currentEvent.getDriver(), currentEvent.getNewState());
             totalEventsProcessed++;
         }
 
@@ -61,7 +61,12 @@ public class EventEngine {
     // Getters
     public long getCurrentTime() { return currentTime; }
     public long getMaxSimulationTime() { return maxSimulationTime; }
-    public void setMaxSimulationTime(long time) { this.maxSimulationTime = time; }
+    public void setMaxSimulationTime(long time) {
+        if (time < 0) {
+            throw new IllegalArgumentException("Maximum simulation time cannot be negative");
+        }
+        this.maxSimulationTime = time;
+    }
     
     public long getTotalEventsProcessed() { return totalEventsProcessed; }
     public int getPeakQueueDepth() { return peakQueueDepth; }

@@ -44,7 +44,7 @@ public class VcdLogger implements SignalObserver {
         }
     }
 
-    public void exportFile() {
+    public void exportFile() throws IOException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(filepath))) {
             writer.println("$date Today $end");
             writer.println("$timescale 1ns $end");
@@ -60,8 +60,6 @@ public class VcdLogger implements SignalObserver {
                 writer.println(transition);
             }
             System.out.println("Waveform successfully exported to " + filepath);
-        } catch (IOException e) {
-            System.err.println("Failed to export VCD file: " + e.getMessage());
         }
     }
 }
