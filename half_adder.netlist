@@ -1,0 +1,15 @@
+# Wires must be declared first
+WIRE A
+WIRE B
+WIRE Carry
+WIRE Internal_OR
+WIRE Internal_AND
+WIRE Internal_NOT
+WIRE Sum
+
+# Gates: TYPE ID DELAY [INPUTS...] OUTPUT
+AND carry_and 10 A B Carry
+OR sum_or 10 A B Internal_OR
+AND sum_and1 10 A B Internal_AND
+NOT sum_not 10 Internal_AND Internal_NOT
+AND final_sum 10 Internal_OR Internal_NOT Sum

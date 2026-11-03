@@ -1,0 +1,38 @@
+SIM_TIME 100
+
+# 1. Define the reusable Half Adder Macro Blueprint
+DEF HALF_ADDER IN_A IN_B OUT_SUM OUT_CARRY
+WIRE int_or
+WIRE int_and
+WIRE int_not
+OR s_or 10 IN_A IN_B int_or
+AND s_and 10 IN_A IN_B int_and
+NOT s_not 10 int_and int_not
+AND f_and 10 int_or int_not OUT_SUM
+AND c_and 10 IN_A IN_B OUT_CARRY
+ENDDEF
+
+# 2. Define Main Circuit Wires
+WIRE Input_X
+WIRE Input_Y
+WIRE Input_CarryIn
+WIRE Main_Sum
+WIRE Main_CarryOut
+WIRE HA1_Sum
+WIRE HA1_Carry
+WIRE HA2_Carry
+
+# 3. Instantiate the Full Adder using Macros
+# A Full Adder is just two Half Adders and an OR gate.
+HALF_ADDER ha1 Input_X Input_Y HA1_Sum HA1_Carry
+HALF_ADDER ha2 HA1_Sum Input_CarryIn Main_Sum HA2_Carry
+OR final_carry 10 HA1_Carry HA2_Carry Main_CarryOut
+
+# 4. Testbench Stimulus
+STIMULUS 0 Input_X 1
+STIMULUS 0 Input_Y 0
+STIMULUS 0 Input_CarryIn 1
+# Expected output at 0ns: Sum=0, CarryOut=1
+
+STIMULUS 50 Input_Y 1
+# Expected output at 50ns: X=1, Y=1, Cin=1 -> Sum=1, CarryOut=1

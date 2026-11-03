@@ -1,0 +1,21 @@
+$date Today $end
+$timescale 1ns $end
+$var wire 1 Input_A Input_A $end
+$var wire 1 Input_B Input_B $end
+$var wire 1 Output_Sum Output_Sum $end
+$var wire 1 Output_Carry Output_Carry $end
+$enddefinitions $end
+#0
+1Input_A
+#0
+0Input_B
+#10
+0Output_Carry
+#30
+1Output_Sum
+#50
+1Input_B
+#60
+1Output_Carry
+#80
+0Output_Sum
