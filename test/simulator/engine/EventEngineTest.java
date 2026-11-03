@@ -42,4 +42,16 @@ class EventEngineTest {
         assertEquals(50, engine.getCurrentTime(), 
                 "Master clock should advance to the timestamp of the last event");
     }
+
+    @Test
+    void doesNotProcessEventsBeyondSimulationLimit() {
+        Wire testWire = new Wire("LimitedWire");
+        engine.setMaxSimulationTime(20);
+        engine.scheduleEvent(new SignalEvent(21, testWire, VoltageState.HIGH));
+
+        engine.runSimulation();
+
+        assertEquals(VoltageState.UNKNOWN, testWire.getCurrentState());
+        assertEquals(0, engine.getTotalEventsProcessed());
+    }
 }

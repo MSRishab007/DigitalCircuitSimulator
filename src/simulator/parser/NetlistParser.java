@@ -27,7 +27,6 @@ public class NetlistParser {
         components.clear();
         macros.clear();
         EventEngine.getInstance().resetEngine();
-        boolean sawSimulationTime = false;
         try (BufferedReader reader = new BufferedReader(new FileReader(filepath))) {
             String line;
             int lineNumber = 0;
@@ -73,7 +72,6 @@ public class NetlistParser {
                         requireLength(tokens, 2, lineNumber, "SIM_TIME <nanoseconds>");
                         EventEngine.getInstance().setMaxSimulationTime(Long.parseLong(tokens[1]));
                         EventEngine.getInstance().resetEngine();
-                        sawSimulationTime = true;
                     } 
                     else if (command.equals("WIRE")) {
                         requireLength(tokens, 2, lineNumber, "WIRE <name>");
@@ -118,9 +116,6 @@ public class NetlistParser {
             }
             if (currentMacro != null) {
                 throw new IllegalArgumentException("Missing ENDDEF for macro: " + currentMacro.name);
-            }
-            if (!sawSimulationTime) {
-                EventEngine.getInstance().resetEngine();
             }
         }
     }

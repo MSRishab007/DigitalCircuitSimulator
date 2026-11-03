@@ -26,7 +26,6 @@ public class SimulationFacade {
         }
 
         System.out.println("3. Initializing simulation clock at zero...");
-        engine.resetEngine();
         
         logger = new VcdLogger(outputWaveformPath);
         parser.getAllWires().forEach(logger::monitorWire);

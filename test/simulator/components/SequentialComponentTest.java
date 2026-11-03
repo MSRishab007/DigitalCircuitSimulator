@@ -16,6 +16,7 @@ class SequentialComponentTest {
     void setUp() {
         engine = EventEngine.getInstance();
         engine.resetEngine();
+        engine.setMaxSimulationTime(1000);
     }
 
     @Test

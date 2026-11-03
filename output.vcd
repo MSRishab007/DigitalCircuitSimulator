@@ -1,63 +1,37 @@
 $date Today $end
 $timescale 1ns $end
-$var wire 1 ha2_int_not ha2_int_not $end
-$var wire 1 HA1_Carry HA1_Carry $end
-$var wire 1 ha1_int_or ha1_int_or $end
-$var wire 1 ha1_int_not ha1_int_not $end
-$var wire 1 ha2_int_or ha2_int_or $end
-$var wire 1 HA2_Carry HA2_Carry $end
-$var wire 1 Input_CarryIn Input_CarryIn $end
-$var wire 1 HA1_Sum HA1_Sum $end
-$var wire 1 Main_CarryOut Main_CarryOut $end
-$var wire 1 ha1_int_and ha1_int_and $end
-$var wire 1 Input_Y Input_Y $end
-$var wire 1 Main_Sum Main_Sum $end
-$var wire 1 ha2_int_and ha2_int_and $end
-$var wire 1 Input_X Input_X $end
+$var wire 1 Input_B Input_B $end
+$var wire 1 Input_A Input_A $end
+$var wire 1 CarryOut CarryOut $end
+$var wire 1 Wire3 Wire3 $end
+$var wire 1 Wire2 Wire2 $end
+$var wire 1 Input_Cin Input_Cin $end
+$var wire 1 Wire1 Wire1 $end
+$var wire 1 Sum Sum $end
 $enddefinitions $end
 #0
-1Input_X
+1Input_A
 #0
-0Input_Y
+0Input_B
 #0
-1Input_CarryIn
+1Input_Cin
 #10
-0HA1_Carry
+0Wire2
 #10
-1ha2_int_or
-#10
-0ha1_int_and
-#10
-1ha1_int_or
+1Wire1
 #20
-1ha1_int_not
+0Sum
+#20
+1Wire3
 #30
-1HA1_Sum
-#40
-1ha2_int_and
-#40
-1HA2_Carry
+1CarryOut
 #50
-0ha2_int_not
-#50
-1Main_CarryOut
-#50
-xInput_Y
+1Input_B
 #60
-0Main_Sum
+0Wire1
 #60
-xHA1_Carry
-#60
-xha1_int_and
+1Wire2
 #70
-xha1_int_not
-#80
-xHA1_Sum
-#90
-xha2_int_and
-#90
-xHA2_Carry
-#100
-xha2_int_not
-#100
-xMain_CarryOut
+0Wire3
+#70
+1Sum
