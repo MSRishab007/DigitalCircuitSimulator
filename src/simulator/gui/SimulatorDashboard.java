@@ -1,7 +1,11 @@
 package simulator.gui;
 
 import simulator.components.Clock;
+import simulator.application.SimulationApplicationService;
 import simulator.core.DigitalComponent;
+import simulator.engine.CircuitEquivalenceChecker;
+import simulator.engine.TimingAnalysisResult;
+import simulator.engine.TruthTable;
 import simulator.engine.SimulationContext;
 import simulator.engine.SimulationDebugger;
 import simulator.io.VcdLogger;
@@ -12,6 +16,8 @@ import simulator.parser.SimulationRunner;
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
+import java.util.Arrays;
+import java.util.List;
 
 public class SimulatorDashboard extends JFrame {
     private final JTextArea editorArea;
@@ -21,6 +27,8 @@ public class SimulatorDashboard extends JFrame {
     private final JButton stepBtn;
     private final JButton resetBtn;
     private final JLabel statusLabel;
+    private final SimulationApplicationService service =
+            new SimulationApplicationService();
     private SimulationContext debugContext;
     private SimulationDebugger debugger;
     private NetlistParser debugParser;
@@ -78,6 +86,8 @@ public class SimulatorDashboard extends JFrame {
         waveScroll.getVerticalScrollBar().setUnitIncrement(16);
         rightTabs.addTab("Waveform Viewer", waveScroll);
 
+        rightTabs.addTab("Analysis", createAnalysisPanel());
+
         // --- Split Pane Layout ---
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editorScroll, rightTabs);
         splitPane.setDividerLocation(400);
@@ -93,6 +103,91 @@ public class SimulatorDashboard extends JFrame {
         resetBtn.addActionListener(e -> resetSimulation());
         stepBtn.setEnabled(false);
         resetBtn.setEnabled(false);
+    }
+
+    private JPanel createAnalysisPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        JPanel controls = new JPanel(new GridLayout(3, 2, 5, 5));
+        JTextField inputsField = new JTextField("Input_A,Input_B,Input_Cin");
+        JTextField outputsField = new JTextField("Sum,CarryOut");
+        JButton timingButton = new JButton("Analyze Timing");
+        JButton truthTableButton = new JButton("Generate Truth Table");
+        controls.setBorder(BorderFactory.createTitledBorder("Current Netlist"));
+        controls.add(new JLabel("Input wires:"));
+        controls.add(inputsField);
+        controls.add(new JLabel("Output wires:"));
+        controls.add(outputsField);
+        controls.add(timingButton);
+        controls.add(truthTableButton);
+
+        JTextArea comparisonArea = new JTextArea();
+        comparisonArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        comparisonArea.setText("# Paste a second netlist here for equivalence checking\n");
+        JScrollPane comparisonScroll = new JScrollPane(comparisonArea);
+        comparisonScroll.setBorder(BorderFactory.createTitledBorder("Comparison Netlist"));
+        JButton equivalenceButton = new JButton("Check Equivalence");
+        JPanel comparisonPanel = new JPanel(new BorderLayout(5, 5));
+        comparisonPanel.add(comparisonScroll, BorderLayout.CENTER);
+        comparisonPanel.add(equivalenceButton, BorderLayout.SOUTH);
+
+        JTextArea resultArea = new JTextArea();
+        resultArea.setEditable(false);
+        resultArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane resultScroll = new JScrollPane(resultArea);
+        resultScroll.setBorder(BorderFactory.createTitledBorder("Analysis Result"));
+
+        timingButton.addActionListener(event -> {
+            try {
+                TimingAnalysisResult result = service.analyze(editorArea.getText());
+                resultArea.setText("Critical path delay: "
+                        + result.getCriticalPathDelay() + " ns\n"
+                        + "Maximum clock frequency: "
+                        + result.getMaxClockFrequencyMHz() + " MHz");
+            } catch (Exception exception) {
+                resultArea.setText("Analysis failed: " + exception.getMessage());
+            }
+        });
+        truthTableButton.addActionListener(event -> {
+            try {
+                TruthTable table = service.truthTable(editorArea.getText(),
+                        names(inputsField.getText()), names(outputsField.getText()));
+                resultArea.setText(table.toText());
+            } catch (Exception exception) {
+                resultArea.setText("Truth-table generation failed: "
+                        + exception.getMessage());
+            }
+        });
+        equivalenceButton.addActionListener(event -> {
+            try {
+                CircuitEquivalenceChecker.EquivalenceResult result =
+                        service.equivalent(editorArea.getText(), comparisonArea.getText(),
+                                names(inputsField.getText()), names(outputsField.getText()));
+                if (result.isEquivalent()) {
+                    resultArea.setText("Equivalent for all input combinations.");
+                } else {
+                    resultArea.setText("Not equivalent.\nCounterexample row: "
+                            + result.getCounterexampleRow() + "\nInputs: "
+                            + result.getFirstRow().getInputStates() + "\nCurrent outputs: "
+                            + result.getFirstRow().getOutputStates() + "\nComparison outputs: "
+                            + result.getSecondRow().getOutputStates());
+                }
+            } catch (Exception exception) {
+                resultArea.setText("Equivalence check failed: "
+                        + exception.getMessage());
+            }
+        });
+
+        panel.add(controls, BorderLayout.NORTH);
+        panel.add(comparisonPanel, BorderLayout.CENTER);
+        panel.add(resultScroll, BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private static List<String> names(String value) {
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .toList();
     }
 
     private void openFile() {
@@ -135,7 +230,7 @@ public class SimulatorDashboard extends JFrame {
         new SwingWorker<SimulationRunner.SimulationResult, Void>() {
             @Override
             protected SimulationRunner.SimulationResult doInBackground() {
-                return new SimulationRunner().runString(netlist, waveformPath);
+                return service.simulate(netlist, waveformPath);
             }
 
             @Override

@@ -112,6 +112,41 @@ The Swing dashboard now exposes the same controls through **Step Event** and
 **Reset**. Stepping updates the current simulation time, pending event count,
 and waveform viewer without restarting the session.
 
+The dashboard's **Analysis** tab also provides timing analysis, truth-table
+generation, and equivalence checking. Input and output wires are entered as
+comma-separated names; equivalence checking accepts a second netlist in the
+comparison editor.
+
+## Shared application API
+
+CLI, GUI, and WebAssembly clients share the operations in
+`SimulationApplicationService`: simulation, validation, timing analysis,
+truth-table generation, and equivalence checking. WebAssembly exports the
+following JSON APIs:
+
+```text
+runSimulation(netlist)
+validateCircuit(netlist)
+analyzeCircuit(netlist)
+generateTruthTable(netlist, "A,B", "SUM")
+checkEquivalent(firstNetlist, secondNetlist, "A,B", "SUM")
+```
+
+## Browser demo
+
+Build the TeaVM client and serve the repository root over HTTP:
+
+```powershell
+mvn package
+python -m http.server 8000
+```
+
+Open `http://localhost:8000/`. The tracked [index.html](D:/Hp/Documents/Projects/DigitalCircuitSimulator/index.html)
+loads `target/generated/js/simulator.js` and exercises simulation, validation,
+timing analysis, truth-table generation, and equivalence checking. Serving the
+files over HTTP is required because browsers block some generated-script
+behaviors when the page is opened directly from `file://`.
+
 ## Outputs
 
 The simulator validates combinational topology, runs a timestamp-ordered event

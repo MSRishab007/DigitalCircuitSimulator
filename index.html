@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Digital Circuit Simulator</title>
+    <style>
+        :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+        body { margin: 0; background: #111827; color: #e5e7eb; }
+        main { max-width: 1200px; margin: auto; padding: 24px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .card { background: #1f2937; border: 1px solid #374151; border-radius: 8px; padding: 16px; }
+        textarea, input { box-sizing: border-box; width: 100%; background: #030712;
+            color: #d1fae5; border: 1px solid #4b5563; border-radius: 4px; padding: 8px; }
+        textarea { min-height: 210px; font: 13px ui-monospace, monospace; }
+        input { margin-bottom: 8px; }
+        button { margin: 4px 4px 4px 0; padding: 8px 12px; color: white;
+            background: #2563eb; border: 0; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+        pre { white-space: pre-wrap; overflow: auto; min-height: 100px; }
+        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Digital Circuit Simulator</h1>
+    <p>Browser client backed by the TeaVM-generated JavaScript engine.</p>
+    <div class="grid">
+        <section class="card">
+            <h2>Primary netlist</h2>
+            <textarea id="netlist">SIM_TIME 10
+WIRE A
+WIRE B
+WIRE OUT
+AND gate 0 A B OUT
+STIMULUS 0 A 1
+STIMULUS 0 B 1</textarea>
+            <label>Inputs (comma-separated)</label>
+            <input id="inputs" value="A,B">
+            <label>Outputs (comma-separated)</label>
+            <input id="outputs" value="OUT">
+            <button data-operation="simulate">Simulate</button>
+            <button data-operation="validate">Validate</button>
+            <button data-operation="analyze">Analyze timing</button>
+            <button data-operation="truth-table">Truth table</button>
+        </section>
+        <section class="card">
+            <h2>Equivalence comparison</h2>
+            <textarea id="comparison">SIM_TIME 10
+WIRE A
+WIRE B
+WIRE OUT
+OR gate 0 A B OUT</textarea>
+            <button data-operation="equivalent">Check equivalence</button>
+            <h2>Result</h2>
+            <pre id="result">Build the project with Maven, then select an operation.</pre>
+        </section>
+    </div>
+</main>
+<script src="target/generated/js/simulator.js"></script>
+<script>
+    const result = document.getElementById("result");
+    const value = id => document.getElementById(id).value;
+    const show = text => {
+        try { result.textContent = JSON.stringify(JSON.parse(text), null, 2); }
+        catch (_) { result.textContent = text; }
+    };
+    const names = () => [value("inputs"), value("outputs")];
+
+    document.querySelectorAll("button[data-operation]").forEach(button => {
+        button.addEventListener("click", () => {
+            try {
+                if (typeof runSimulation !== "function") {
+                    throw new Error("TeaVM engine is not loaded. Run mvn package first.");
+                }
+                const operation = button.dataset.operation;
+                const [inputs, outputs] = names();
+                let response;
+                if (operation === "simulate") response = runSimulation(value("netlist"));
+                if (operation === "validate") response = validateCircuit(value("netlist"));
+                if (operation === "analyze") response = analyzeCircuit(value("netlist"));
+                if (operation === "truth-table") {
+                    response = generateTruthTable(value("netlist"), inputs, outputs);
+                }
+                if (operation === "equivalent") {
+                    response = checkEquivalent(value("netlist"), value("comparison"),
+                        inputs, outputs);
+                }
+                show(response);
+            } catch (error) {
+                show(JSON.stringify({ success: false, error: error.message }));
+            }
+        });
+    });
+</script>
+</body>
+</html>

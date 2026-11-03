@@ -7,7 +7,7 @@ target/
 *.vcd
 Simulator.jar
 manifest.txt
-index.html
+# The browser demo is a tracked source file.
 
 # IDE metadata
 .idea/

@@ -1,15 +1,13 @@
 package simulator;
 
+import simulator.application.SimulationApplicationService;
 import simulator.parser.SimulationFacade;
-import simulator.engine.SimulationContext;
 import simulator.engine.CircuitEquivalenceChecker;
-import simulator.engine.StaticTimingAnalyzer;
 import simulator.engine.TruthTable;
-import simulator.engine.TruthTableGenerator;
-import simulator.parser.NetlistParser;
-import simulator.parser.TopologyValidator;
 
 public class Main {
+    private static final SimulationApplicationService SERVICE =
+            new SimulationApplicationService();
     public static void main(String[] args) {
         if (args.length < 1 || args.length > 5) {
             printUsage();
@@ -38,30 +36,22 @@ public class Main {
     }
 
     private static void validate(String path) throws Exception {
-        NetlistParser parser = new NetlistParser(new SimulationContext());
-        parser.parse(path);
-        if (!new TopologyValidator().validateNoCombinationalLoops(parser.getComponents())) {
-            throw new IllegalStateException("Unclocked combinational loop detected");
-        }
+        String netlist = java.nio.file.Files.readString(java.nio.file.Path.of(path));
+        var result = SERVICE.validate(netlist);
+        if (!result.isValid()) throw new IllegalStateException(result.getMessage());
         System.out.println("VALID: " + path);
     }
 
     private static void analyze(String path) throws Exception {
-        NetlistParser parser = new NetlistParser(new SimulationContext());
-        parser.parse(path);
-        if (!new TopologyValidator().validateNoCombinationalLoops(parser.getComponents())) {
-            throw new IllegalStateException("Unclocked combinational loop detected");
-        }
-
-        var result = new StaticTimingAnalyzer().analyze(parser.getComponents());
+        String netlist = java.nio.file.Files.readString(java.nio.file.Path.of(path));
+        var result = SERVICE.analyze(netlist);
         System.out.println("CRITICAL_PATH_DELAY_NS=" + result.getCriticalPathDelay());
         System.out.println("MAX_CLOCK_FREQUENCY_MHZ=" + result.getMaxClockFrequencyMHz());
     }
 
     private static void truthTable(String path, String inputs, String outputs) throws Exception {
         String netlist = java.nio.file.Files.readString(java.nio.file.Path.of(path));
-        TruthTable table = new TruthTableGenerator().generate(
-                netlist, names(inputs), names(outputs));
+        TruthTable table = SERVICE.truthTable(netlist, names(inputs), names(outputs));
         System.out.print(table.toText());
     }
 
@@ -69,7 +59,7 @@ public class Main {
                                    String inputs, String outputs) throws Exception {
         String first = java.nio.file.Files.readString(java.nio.file.Path.of(firstPath));
         String second = java.nio.file.Files.readString(java.nio.file.Path.of(secondPath));
-        var result = new CircuitEquivalenceChecker().compare(
+        var result = SERVICE.equivalent(
                 first, second, names(inputs), names(outputs));
         if (result.isEquivalent()) {
             System.out.println("EQUIVALENT");
