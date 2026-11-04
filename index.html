@@ -5,19 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Digital Circuit Simulator</title>
     <style>
-        :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-        body { margin: 0; background: #111827; color: #e5e7eb; }
-        main { max-width: 1200px; margin: auto; padding: 24px; }
+        :root { font-family: "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif; color: #1f2328; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #ffffff; }
+        main { max-width: 1200px; margin: auto; padding: 20px 16px; }
+        h1 { margin: 0 0 4px; font-size: 22px; }
+        h2 { margin: 16px 0 8px; font-size: 15px; }
+        section h2:first-child { margin-top: 0; }
+        p { margin: 0 0 16px; color: #5f6770; font-size: 14px; }
+        label { display: block; margin-bottom: 4px; color: #5f6770; font-size: 13px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .card { background: #1f2937; border: 1px solid #374151; border-radius: 8px; padding: 16px; }
-        textarea, input { box-sizing: border-box; width: 100%; background: #030712;
-            color: #d1fae5; border: 1px solid #4b5563; border-radius: 4px; padding: 8px; }
-        textarea { min-height: 210px; font: 13px ui-monospace, monospace; }
-        input { margin-bottom: 8px; }
-        button { margin: 4px 4px 4px 0; padding: 8px 12px; color: white;
-            background: #2563eb; border: 0; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #1d4ed8; }
-        pre { white-space: pre-wrap; overflow: auto; min-height: 100px; }
+        .card { background: #ffffff; border: 1px solid #d8dbdf; border-radius: 4px; padding: 16px; min-width: 0; }
+        textarea, input { width: 100%; background: #ffffff; color: #1f2328; border: 1px solid #b9bec5;
+            border-radius: 3px; padding: 6px 8px; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
+        textarea { min-height: 210px; resize: vertical; }
+        input { margin-bottom: 10px; }
+        textarea:focus, input:focus { outline: 2px solid #1d5fbf; outline-offset: -1px; }
+        button { margin: 4px 4px 4px 0; padding: 7px 12px; color: #ffffff; background: #1d5fbf; border: 0;
+            border-radius: 3px; font: inherit; font-size: 13px; cursor: pointer; }
+        button:hover { background: #174c99; }
+        button:focus-visible { outline: 2px solid #1f2328; outline-offset: 1px; }
+        button[data-operation="simulate"] { background: #1b7f3b; }
+        button[data-operation="simulate"]:hover { background: #15652f; }
+        button[data-operation="validate"] { background: #0b7285; }
+        button[data-operation="validate"]:hover { background: #085b6a; }
+        pre { margin: 0; padding: 8px; white-space: pre-wrap; overflow: auto; min-height: 100px;
+            background: #f3f4f6; border: 1px solid #d8dbdf; border-radius: 3px;
+            font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
         @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
     </style>
 </head>

@@ -58,6 +58,7 @@ private void parseReader(BufferedReader reader) throws IOException {
     String line;
     int lineNumber = 0;
     MacroDef currentMacro = null;
+    List<Runnable> faults = new ArrayList<>();
     
     while ((line = reader.readLine()) != null) {
         lineNumber++;
@@ -116,8 +117,9 @@ private void parseReader(BufferedReader reader) throws IOException {
                 requireLength(tokens, 3, lineNumber, "FAULT <STUCK_AT_0|STUCK_AT_1> <wire>");
                 String type = tokens[1].toUpperCase();
                 Wire target = getWire(tokens[2]);
-                if (type.equals("STUCK_AT_0")) FaultInjector.stuckAtZero(target);
-                else if (type.equals("STUCK_AT_1")) FaultInjector.stuckAtOne(target);
+                // Applied after parsing, so gates declared below this line still see the fault.
+                if (type.equals("STUCK_AT_0")) faults.add(() -> FaultInjector.stuckAtZero(target));
+                else if (type.equals("STUCK_AT_1")) faults.add(() -> FaultInjector.stuckAtOne(target));
                 else throw new IllegalArgumentException("Unsupported fault type: " + type);
             }
             else if (command.equals("STIMULUS")) {
@@ -144,6 +146,14 @@ private void parseReader(BufferedReader reader) throws IOException {
     }
     if (currentMacro != null) {
         throw new IllegalArgumentException("Missing ENDDEF for macro: " + currentMacro.name);
+    }
+    faults.forEach(Runnable::run);
+    // Flip-flops start in a known state, so their outputs must show it from the start.
+    // Otherwise feedback circuits such as counters only ever see an unknown value.
+    for (DigitalComponent component : components) {
+        if (component instanceof simulator.components.SequentialComponent) {
+            component.evaluate();
+        }
     }
 }
     private void instantiateMacro(MacroDef macro, String[] args) {

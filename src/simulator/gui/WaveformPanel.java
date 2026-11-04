@@ -201,6 +201,42 @@ public class WaveformPanel extends JPanel implements Scrollable {
         return !signals.isEmpty();
     }
 
+    public long getMaxTime() {
+        return maxTime;
+    }
+
+    /** The value of a loaded wire at a time as 0, 1, x or z, or null when the wire was not loaded. */
+    public Character valueAt(String wire, long time) {
+        List<Transition> transitions = signals.get(wire);
+        return transitions == null ? null : stateAt(transitions, time);
+    }
+
+    /** The first signal change after a time, or the time itself when nothing changes later. */
+    public long nextEdge(long time) {
+        long best = Long.MAX_VALUE;
+        for (List<Transition> transitions : signals.values()) {
+            for (Transition transition : transitions) {
+                if (transition.time > time && transition.time < best) {
+                    best = transition.time;
+                }
+            }
+        }
+        return best == Long.MAX_VALUE ? time : best;
+    }
+
+    /** The last signal change before a time, or 0 when nothing changes earlier. */
+    public long previousEdge(long time) {
+        long best = 0;
+        for (List<Transition> transitions : signals.values()) {
+            for (Transition transition : transitions) {
+                if (transition.time < time && transition.time > best) {
+                    best = transition.time;
+                }
+            }
+        }
+        return best;
+    }
+
     public void exportPng(File file) throws IOException {
         int width = Math.max(getWidth(), 400);
         int height = HEADER_HEIGHT + visibleSignals().size() * ROW_HEIGHT + 10;

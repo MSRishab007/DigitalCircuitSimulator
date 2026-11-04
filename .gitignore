@@ -1,5 +1,6 @@
 # Maven and Java build output
 target/
+bin/
 .build/
 *.class
 

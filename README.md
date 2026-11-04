@@ -59,7 +59,9 @@ java simulator.gui.SimulatorDashboard
 ```
 
 The dashboard edits netlists, runs and steps simulations, shows waveforms, and
-generates truth tables. Truth tables and equivalence checks work on
+draws a schematic, and generates truth tables. The Schematic tab redraws as you
+edit. After a run or step it colours each wire by its value, and the time slider
+moves through the simulation. Truth tables and equivalence checks work on
 combinational circuits. Leave the wire fields empty or press **Detect wires**
 to use the netlist's undriven wires as inputs and its unread wires as outputs.
 
@@ -88,7 +90,8 @@ DFF register 5 DATA CLOCK_WIRE Q
 ```
 
 Stimulus values are `0`, `1`, or `Z`. Wires must be declared before they are
-referenced. Macro definitions use `DEF ...` and `ENDDEF`.
+referenced. Macro definitions use `DEF ...` and `ENDDEF`. A `FAULT` applies to
+the whole circuit wherever it appears, and a `DFF` output starts at 0.
 
 Assertions can verify a wire at a simulation timestamp:
 

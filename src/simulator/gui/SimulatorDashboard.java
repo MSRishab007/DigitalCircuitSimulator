@@ -99,6 +99,15 @@ public class SimulatorDashboard extends JFrame {
     private final JPanel resultHost = new JPanel(resultCards);
     private final ColorButton exportCsvBtn = new ColorButton("Export CSV", Theme.SLATE);
     private final UndoManager undo = new UndoManager();
+    private final SchematicPanel schematicPanel = new SchematicPanel();
+    private final JSlider timeSlider = new JSlider(0, 1, 0);
+    private final JLabel timeLabel = Ui.label(" ", Theme.MUTED, Theme.ui(Font.PLAIN, 12f));
+    private final ColorButton previousEdgeBtn = new ColorButton("Previous change", Theme.SLATE);
+    private final ColorButton nextEdgeBtn = new ColorButton("Next change", Theme.SLATE);
+    private final javax.swing.Timer schematicTimer = new javax.swing.Timer(400, e -> refreshSchematic());
+    private JPanel schematicTab;
+    private String simulatedNetlist;
+    private boolean updatingSlider;
     private final List<JButton> busyButtons = new ArrayList<>();
     private final Map<JButton, Boolean> enabledBeforeBusy = new HashMap<>();
     private TruthTable lastTruthTable;
@@ -175,7 +184,15 @@ public class SimulatorDashboard extends JFrame {
         waveformPanel = new WaveformPanel();
         rightTabs.addTab("Waveform viewer", createWaveformTab());
 
+        schematicTab = createSchematicTab();
+        rightTabs.addTab("Schematic", schematicTab);
+
         rightTabs.addTab("Analysis", createAnalysisPanel());
+        rightTabs.addChangeListener(e -> {
+            if (rightTabs.getSelectedComponent() == schematicTab) {
+                refreshSchematic();
+            }
+        });
 
         // --- Split Pane Layout ---
         JSplitPane splitPane = Ui.split(JSplitPane.HORIZONTAL_SPLIT, editorPane, rightTabs);
@@ -317,6 +334,7 @@ public class SimulatorDashboard extends JFrame {
         } else {
             stepBtn.setEnabled(true);
         }
+        schematicTimer.restart();
     }
 
     private void setDirty(boolean value) {
@@ -421,6 +439,141 @@ public class SimulatorDashboard extends JFrame {
         tab.add(waveScroll, BorderLayout.CENTER);
         tab.add(readout, BorderLayout.SOUTH);
         return tab;
+    }
+
+    private JPanel createSchematicTab() {
+        ColorButton zoomIn = new ColorButton("Zoom in", Theme.SLATE);
+        ColorButton zoomOut = new ColorButton("Zoom out", Theme.SLATE);
+        ColorButton fit = new ColorButton("Fit", Theme.SLATE);
+        ColorButton saveImage = new ColorButton("Save image", Theme.BLUE);
+        schematicTimer.setRepeats(false);
+
+        JPanel controls = new JPanel(new BorderLayout());
+        controls.setBackground(Color.WHITE);
+        controls.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE),
+                new EmptyBorder(6, 10, 6, 10)));
+        controls.add(Ui.row(6, zoomIn, zoomOut, fit, saveImage), BorderLayout.WEST);
+
+        JScrollPane scroll = Ui.scroll(schematicPanel);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.getHorizontalScrollBar().setUnitIncrement(16);
+
+        timeSlider.setUI(new PlainSliderUI(timeSlider));
+        timeSlider.setOpaque(false);
+        timeSlider.setFocusable(false);
+        timeLabel.setPreferredSize(new Dimension(90, 18));
+        JPanel scrubber = new JPanel(new BorderLayout(8, 0));
+        scrubber.setOpaque(false);
+        scrubber.add(previousEdgeBtn, BorderLayout.WEST);
+        scrubber.add(timeSlider, BorderLayout.CENTER);
+        scrubber.add(Ui.row(8, nextEdgeBtn, timeLabel), BorderLayout.EAST);
+        JLabel readout = Ui.label(" ", Theme.MUTED, Theme.ui(Font.PLAIN, 12f));
+        JPanel bottom = new JPanel(new BorderLayout(0, 4));
+        bottom.setBackground(Color.WHITE);
+        bottom.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.LINE),
+                new EmptyBorder(6, 10, 4, 10)));
+        bottom.add(scrubber, BorderLayout.NORTH);
+        bottom.add(readout, BorderLayout.SOUTH);
+        schematicPanel.setReadoutListener(readout::setText);
+
+        zoomIn.addActionListener(e -> schematicPanel.zoomIn());
+        zoomOut.addActionListener(e -> schematicPanel.zoomOut());
+        fit.addActionListener(e -> schematicPanel.fitToWindow());
+        saveImage.addActionListener(e -> saveSchematicImage());
+        timeSlider.addChangeListener(e -> {
+            if (!updatingSlider) {
+                showSchematicValues(timeSlider.getValue());
+            }
+        });
+        previousEdgeBtn.addActionListener(e ->
+                scrubTo(waveformPanel.previousEdge(timeSlider.getValue())));
+        nextEdgeBtn.addActionListener(e ->
+                scrubTo(waveformPanel.nextEdge(timeSlider.getValue())));
+        setScrubberEnabled(false);
+
+        JPanel tab = new JPanel(new BorderLayout());
+        tab.setBackground(Color.WHITE);
+        tab.add(controls, BorderLayout.NORTH);
+        tab.add(scroll, BorderLayout.CENTER);
+        tab.add(bottom, BorderLayout.SOUTH);
+        return tab;
+    }
+
+    /** Redraws the schematic from the editor. Parsing resets shared engine state, so it waits for running work. */
+    private void refreshSchematic() {
+        if (busy) {
+            schematicTimer.restart();
+            return;
+        }
+        if (schematicTab == null || !schematicTab.isShowing()) {
+            return;
+        }
+        String netlist = editorArea.getText();
+        if (netlist.isBlank()) {
+            schematicPanel.showMessage("The netlist is empty. Add wires and gates to draw a schematic.");
+        } else {
+            try {
+                NetlistParser parser = new NetlistParser(new SimulationContext());
+                parser.parseString(netlist);
+                schematicPanel.setCircuit(SchematicLayout.build(parser));
+            } catch (RuntimeException ex) {
+                schematicPanel.showMessage("Fix the netlist to draw its schematic. " + ex.getMessage());
+            }
+        }
+        boolean current = netlist.equals(simulatedNetlist) && waveformPanel.hasSignals();
+        setScrubberEnabled(current);
+        if (current) {
+            updatingSlider = true;
+            timeSlider.setMaximum((int) Math.min(Integer.MAX_VALUE, waveformPanel.getMaxTime()));
+            updatingSlider = false;
+            showSchematicValues(timeSlider.getValue());
+        } else {
+            schematicPanel.setValues(null);
+            timeLabel.setText(" ");
+        }
+    }
+
+    private void setScrubberEnabled(boolean enabled) {
+        timeSlider.setEnabled(enabled);
+        previousEdgeBtn.setEnabled(enabled);
+        nextEdgeBtn.setEnabled(enabled);
+        timeSlider.setToolTipText(enabled ? "Choose the time whose wire values are shown"
+                : "Run a simulation to see wire values");
+    }
+
+    /** Moves the schematic to a time after a run or step, whether or not its tab is open. */
+    private void scrubTo(long time) {
+        updatingSlider = true;
+        timeSlider.setMaximum((int) Math.min(Integer.MAX_VALUE, waveformPanel.getMaxTime()));
+        timeSlider.setValue((int) Math.min(Integer.MAX_VALUE, time));
+        updatingSlider = false;
+        refreshSchematic();
+    }
+
+    private void showSchematicValues(long time) {
+        timeLabel.setText(time + " ns");
+        schematicPanel.setValues(wire -> waveformPanel.valueAt(wire, time));
+    }
+
+    private void saveSchematicImage() {
+        if (!schematicPanel.hasCircuit()) {
+            setActivity("Fix the netlist before saving the schematic", Theme.ERROR);
+            return;
+        }
+        JFileChooser chooser = newChooser();
+        chooser.setSelectedFile(new File("schematic.png"));
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION
+                && confirmOverwrite(chooser.getSelectedFile())) {
+            File file = chooser.getSelectedFile();
+            try {
+                schematicPanel.exportPng(file);
+                setActivity("Saved " + file.getName(), Theme.GREEN);
+            } catch (IOException ex) {
+                setActivity("Could not save " + file.getName() + ": " + ex.getMessage(), Theme.ERROR);
+            }
+        }
     }
 
     private JPanel createAnalysisPanel() {
@@ -886,6 +1039,8 @@ public class SimulatorDashboard extends JFrame {
                 try {
                     SimulationRunner.SimulationResult result = get();
                     waveformPanel.loadVcd(waveformPath);
+                    simulatedNetlist = netlist;
+                    scrubTo(waveformPanel.getMaxTime());
                     log("\n===============================================");
                     log("[+] SIMULATION TELEMETRY REPORT");
                     log("===============================================");
@@ -960,6 +1115,7 @@ public class SimulatorDashboard extends JFrame {
     private void resetSimulation() {
         try {
             prepareDebugSession();
+            exportDebugWaveform();
             log("Simulation reset.");
             setActivity("Simulation reset", Theme.MUTED);
         } catch (Exception ex) {
@@ -973,6 +1129,8 @@ public class SimulatorDashboard extends JFrame {
         if (debugLogger != null) {
             debugLogger.exportFile();
             waveformPanel.loadVcd(debugWaveformPath);
+            simulatedNetlist = editorArea.getText();
+            scrubTo(debugger.getCurrentTime());
         }
     }
 
@@ -1576,6 +1734,40 @@ public class SimulatorDashboard extends JFrame {
         protected void setThumbRollover(boolean active) {
             super.setThumbRollover(active);
             scrollbar.repaint();
+        }
+    }
+
+    /** A flat track and thumb, in place of the default shaded slider. */
+    private static final class PlainSliderUI extends javax.swing.plaf.basic.BasicSliderUI {
+        PlainSliderUI(JSlider slider) {
+            super(slider);
+        }
+
+        @Override
+        protected Dimension getThumbSize() {
+            return new Dimension(10, 18);
+        }
+
+        @Override
+        public void paintTrack(Graphics g) {
+            int y = trackRect.y + trackRect.height / 2 - 2;
+            g.setColor(Theme.LINE);
+            g.fillRect(trackRect.x, y, trackRect.width, 4);
+            if (slider.isEnabled()) {
+                g.setColor(Theme.BLUE);
+                g.fillRect(trackRect.x, y, thumbRect.x - trackRect.x, 4);
+            }
+        }
+
+        @Override
+        public void paintThumb(Graphics g) {
+            g.setColor(slider.isEnabled() ? Theme.BLUE : Theme.DISABLED_FILL);
+            g.fillRect(thumbRect.x, thumbRect.y, thumbRect.width, thumbRect.height);
+        }
+
+        @Override
+        public void paintFocus(Graphics g) {
+            // The slider takes no keyboard focus in this window.
         }
     }
 
