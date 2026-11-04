@@ -19,25 +19,39 @@ public final class TruthTable {
     public List<String> getOutputs() { return Collections.unmodifiableList(outputs); }
     public List<Row> getRows() { return Collections.unmodifiableList(rows); }
 
+    /** Renders the table with each value lined up under its wire name. */
     public String toText() {
         StringBuilder text = new StringBuilder();
-        appendColumns(text, inputs);
+        appendColumns(text, inputs, inputs);
         text.append(" | ");
-        appendColumns(text, outputs);
+        appendColumns(text, outputs, outputs);
         text.append('\n');
         for (Row row : rows) {
-            appendColumns(text, row.inputStates);
+            appendColumns(text, row.inputStates, inputs);
             text.append(" | ");
-            appendColumns(text, row.outputStates);
+            appendColumns(text, row.outputStates, outputs);
             text.append('\n');
         }
         return text.toString();
     }
 
-    private static void appendColumns(StringBuilder text, List<String> values) {
+    public String toCsv() {
+        List<String> header = new ArrayList<>(inputs);
+        header.addAll(outputs);
+        StringBuilder csv = new StringBuilder(String.join(",", header)).append('\n');
+        for (Row row : rows) {
+            List<String> values = new ArrayList<>(row.inputStates);
+            values.addAll(row.outputStates);
+            csv.append(String.join(",", values)).append('\n');
+        }
+        return csv.toString();
+    }
+
+    private static void appendColumns(StringBuilder text, List<String> values, List<String> headers) {
         for (int i = 0; i < values.size(); i++) {
             if (i > 0) text.append(' ');
             text.append(values.get(i));
+            text.append(" ".repeat(headers.get(i).length() - values.get(i).length()));
         }
     }
 

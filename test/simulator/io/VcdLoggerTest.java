@@ -28,4 +28,17 @@ class VcdLoggerTest {
         assertTrue(content.contains("1!"));
         Files.deleteIfExists(output);
     }
+
+    @Test
+    void dumpsTheStateFromWhenMonitoringStartedNotTheFinalState() {
+        Wire wire = new Wire("DATA");
+        VcdLogger logger = new VcdLogger(null);
+        logger.monitorWire(wire);
+
+        wire.updateVoltage(VoltageState.HIGH);
+
+        String vcd = logger.toVcd();
+        String dump = vcd.substring(vcd.indexOf("$dumpvars"), vcd.indexOf("#0"));
+        assertTrue(dump.contains("x!"), dump);
+    }
 }

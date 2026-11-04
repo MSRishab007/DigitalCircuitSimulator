@@ -1,6 +1,7 @@
 package simulator.application;
 
 import simulator.engine.CircuitEquivalenceChecker;
+import simulator.engine.CircuitPorts;
 import simulator.engine.StaticTimingAnalyzer;
 import simulator.engine.TimingAnalysisResult;
 import simulator.engine.TruthTable;
@@ -35,6 +36,11 @@ public final class SimulationApplicationService {
             throw new IllegalStateException(validation.getMessage());
         }
         return new StaticTimingAnalyzer().analyze(parser.getComponents());
+    }
+
+    /** Finds the wires a netlist leaves undriven (inputs) and unread (outputs). */
+    public CircuitPorts detectPorts(String netlist) {
+        return new CircuitPorts(parse(netlist));
     }
 
     public TruthTable truthTable(String netlist, List<String> inputs,

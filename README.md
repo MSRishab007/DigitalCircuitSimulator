@@ -52,6 +52,17 @@ java simulator.Main <input.netlist> [output.vcd]
 
 The output defaults to `output.vcd` when no second argument is provided.
 
+## Run the desktop dashboard
+
+```text
+java simulator.gui.SimulatorDashboard
+```
+
+The dashboard edits netlists, runs and steps simulations, shows waveforms, and
+generates truth tables. Truth tables and equivalence checks work on
+combinational circuits. Leave the wire fields empty or press **Detect wires**
+to use the netlist's undriven wires as inputs and its unread wires as outputs.
+
 ## Netlist syntax
 
 ```text

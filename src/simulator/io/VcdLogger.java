@@ -20,6 +20,7 @@ public class VcdLogger implements SignalObserver {
     private final List<Wire> monitoredWires;
     private final Map<Wire, String> identifiers;
     private final List<String> transitionBuffer;
+    private final Map<Wire, VoltageState> initialStates;
 
     public VcdLogger(String filepath) {
         this(filepath, SimulationContext.defaultContext());
@@ -34,11 +35,13 @@ public class VcdLogger implements SignalObserver {
         this.monitoredWires = new ArrayList<>();
         this.identifiers = new IdentityHashMap<>();
         this.transitionBuffer = new ArrayList<>();
+        this.initialStates = new IdentityHashMap<>();
     }
 
     public void monitorWire(Wire wire) {
         if (!identifiers.containsKey(wire)) {
             identifiers.put(wire, createIdentifier(monitoredWires.size()));
+            initialStates.put(wire, wire.getCurrentState());
             monitoredWires.add(wire);
             wire.addObserver(this);
         }
@@ -81,7 +84,7 @@ public class VcdLogger implements SignalObserver {
         writer.println("$enddefinitions $end");
         writer.println("$dumpvars");
         for (Wire wire : monitoredWires) {
-            writer.println(formatState(wire.getCurrentState()) + identifiers.get(wire));
+            writer.println(formatState(initialStates.get(wire)) + identifiers.get(wire));
         }
         writer.println("$end");
         writer.println("#0");

@@ -13,7 +13,7 @@ import java.util.*;
 
 public class NetlistParser {
     private final SimulationContext simulationContext;
-    private final Map<String, Wire> wires = new HashMap<>();
+    private final Map<String, Wire> wires = new LinkedHashMap<>();
     private final List<DigitalComponent> components = new ArrayList<>();
     private final Map<String, MacroDef> macros = new HashMap<>();
 
@@ -96,7 +96,6 @@ private void parseReader(BufferedReader reader) throws IOException {
             // --- STANDARD EXECUTION MODE ---
             if (command.equals("SIM_TIME")) {
                 requireLength(tokens, 2, lineNumber, "SIM_TIME <nanoseconds>");
-                simulationContext.reset();
                 simulationContext.getEventEngine().setMaxSimulationTime(Long.parseLong(tokens[1]));
             } 
             else if (command.equals("ASSERT")) {
@@ -139,7 +138,8 @@ private void parseReader(BufferedReader reader) throws IOException {
                 instantiateGate(tokens, "", new HashMap<>());
             }
         } catch (Exception e) {
-            throw new RuntimeException("Syntax error at line " + lineNumber + ": " + line, e);
+            throw new RuntimeException("Syntax error at line " + lineNumber + ": " + line
+                    + " (" + e.getMessage() + ")", e);
         }
     }
     if (currentMacro != null) {
