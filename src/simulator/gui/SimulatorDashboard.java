@@ -2,6 +2,7 @@ package simulator.gui;
 
 import simulator.components.Clock;
 import simulator.application.SimulationApplicationService;
+import simulator.application.SimulationApplicationService;
 import simulator.core.DigitalComponent;
 import simulator.engine.CircuitEquivalenceChecker;
 import simulator.engine.TimingAnalysisResult;
