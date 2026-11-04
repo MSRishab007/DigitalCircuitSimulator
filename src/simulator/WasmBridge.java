@@ -48,6 +48,18 @@ public class WasmBridge {
         }
 
     @JSExport
+    public static String detectWires(String netlist) {
+            try {
+                var ports = SERVICE.detectPorts(netlist);
+                return "{\"success\":true,\"wires\":" + listJson(ports.getWires())
+                        + ",\"inputs\":" + listJson(ports.getInputs())
+                        + ",\"outputs\":" + listJson(ports.getOutputs()) + "}";
+            } catch (Exception e) {
+                return errorJson(e);
+            }
+        }
+
+    @JSExport
     public static String generateTruthTable(String netlist, String inputs,
                                             String outputs) {
             try {

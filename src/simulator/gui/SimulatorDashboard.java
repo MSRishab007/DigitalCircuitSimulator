@@ -1058,7 +1058,13 @@ public class SimulatorDashboard extends JFrame {
                             result.getComputeTimeMillis()));
                     log(String.format("%-25s %s", "Waveform Exported:", waveformPath));
                     log("===============================================");
-                    setActivity("Simulation finished", Theme.GREEN);
+                    if (result.getEventsProcessed() == 0) {
+                        log("[!] NO SIGNAL ACTIVITY: this netlist has no STIMULUS lines or CLOCK,");
+                        log("    so its inputs are never driven and every wire stays X.");
+                        setActivity("Nothing changed. Add STIMULUS lines or a CLOCK.", Theme.ORANGE);
+                    } else {
+                        setActivity("Simulation finished", Theme.GREEN);
+                    }
                 } catch (Exception ex) {
                     Throwable cause = ex.getCause() == null ? ex : ex.getCause();
                     log("\n[!] SIMULATION FAILED: " + cause.getMessage());

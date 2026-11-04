@@ -39,6 +39,8 @@ public class WaveformPanel extends JPanel implements Scrollable {
     private static final int LEVEL_LOW = 35;
     private static final int SNAP_PIXELS = 6;
     private static final double MAX_PIXELS_PER_NS = 200;
+    /** Keeps wires visible when everything happens at time 0 or nothing happens at all. */
+    private static final long MINIMUM_AXIS_NS = 10;
 
     private static final Color GRID = new Color(0xE6E8EB);
     private static final Color RULE = new Color(0xD0D4D9);
@@ -254,8 +256,23 @@ public class WaveformPanel extends JPanel implements Scrollable {
         ImageIO.write(image, "png", file);
     }
 
+    /** Runs a little past the last change, so a wire's final value shows as a line and not just an edge. */
+    private long axisEnd() {
+        return Math.max(maxTime + Math.max(1, maxTime / 10), MINIMUM_AXIS_NS);
+    }
+
+    /** True when at least one wire changes value during the simulation. */
+    public boolean hasActivity() {
+        for (List<Transition> transitions : signals.values()) {
+            if (transitions.size() > 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void zoomAround(int anchorX, double factor) {
-        if (signals.isEmpty() || maxTime == 0) {
+        if (signals.isEmpty()) {
             return;
         }
         Rectangle visible = getVisibleRect();
@@ -283,7 +300,7 @@ public class WaveformPanel extends JPanel implements Scrollable {
         if (signals.isEmpty() || x < visible.x + labelWidth()) {
             cursorTime = null;
         } else {
-            cursorTime = snap(Math.max(0, Math.min(maxTime, Math.round(timeAt(x)))));
+            cursorTime = snap(Math.max(0, Math.min(axisEnd(), Math.round(timeAt(x)))));
         }
         publishReadout();
         repaint();
@@ -307,7 +324,9 @@ public class WaveformPanel extends JPanel implements Scrollable {
 
     private void publishReadout() {
         String text;
-        if (cursorTime == null && markerTime == null) {
+        if (!signals.isEmpty() && !hasActivity()) {
+            text = "No wire changes value. Add STIMULUS lines or a CLOCK to drive this circuit's inputs.";
+        } else if (cursorTime == null && markerTime == null) {
             text = signals.isEmpty() ? " " : "Hover to read values. Click to place a marker. Ctrl+scroll to zoom.";
         } else {
             StringBuilder builder = new StringBuilder();
@@ -349,7 +368,7 @@ public class WaveformPanel extends JPanel implements Scrollable {
 
     private double fittedPixelsPerNs() {
         int available = getParent() instanceof JViewport ? getParent().getWidth() : getWidth();
-        return Math.max(0.0001, (available - labelWidth() - RIGHT_PADDING) / (double) Math.max(1, maxTime));
+        return Math.max(0.0001, (available - labelWidth() - RIGHT_PADDING) / (double) axisEnd());
     }
 
     private double pixelsPerNs() {
@@ -369,7 +388,7 @@ public class WaveformPanel extends JPanel implements Scrollable {
         if (signals.isEmpty()) {
             return new Dimension(400, 200);
         }
-        int width = fitToWidth ? 400 : labelWidth() + (int) Math.ceil(maxTime * zoomPixelsPerNs) + RIGHT_PADDING;
+        int width = fitToWidth ? 400 : labelWidth() + (int) Math.ceil(axisEnd() * zoomPixelsPerNs) + RIGHT_PADDING;
         return new Dimension(width, HEADER_HEIGHT + visibleSignals().size() * ROW_HEIGHT + 10);
     }
 
@@ -424,13 +443,13 @@ public class WaveformPanel extends JPanel implements Scrollable {
         double scale = pixelsPerNs();
         long step = tickStep(scale);
         long firstTick = Math.max(0, (long) Math.floor(timeAt(view.x + labels) / step)) * step;
-        long lastTime = Math.min(maxTime, (long) Math.ceil(timeAt(view.x + view.width)));
+        long lastTime = Math.min(axisEnd(), (long) Math.ceil(timeAt(view.x + view.width)));
 
         // Traces and grid scroll underneath the frozen names and time axis.
         Shape outer = g2.getClip();
         g2.clipRect(view.x + labels, view.y + HEADER_HEIGHT, view.width - labels, view.height - HEADER_HEIGHT);
         g2.setColor(GRID);
-        for (long t = firstTick; t <= maxTime && t <= lastTime; t += step) {
+        for (long t = firstTick; t <= lastTime; t += step) {
             g2.drawLine(xAt(t), 0, xAt(t), contentBottom);
         }
         for (int row = 0; row < names.size(); row++) {
@@ -482,7 +501,7 @@ public class WaveformPanel extends JPanel implements Scrollable {
         g2.drawString("Signal", view.x + 10, view.y + 18);
         Shape beforeAxis = g2.getClip();
         g2.clipRect(view.x + labels, view.y, view.width - labels, HEADER_HEIGHT);
-        for (long t = firstTick; t <= maxTime && t <= lastTime; t += step) {
+        for (long t = firstTick; t <= lastTime; t += step) {
             String label = t + " ns";
             g2.drawString(label, xAt(t) - (t == 0 ? 0 : axisMetrics.stringWidth(label) / 2), view.y + 18);
         }
@@ -522,7 +541,7 @@ public class WaveformPanel extends JPanel implements Scrollable {
         }
         for (int i = 0; i < transitions.size(); i++) {
             Transition current = transitions.get(i);
-            long end = i + 1 < transitions.size() ? transitions.get(i + 1).time : maxTime;
+            long end = i + 1 < transitions.size() ? transitions.get(i + 1).time : axisEnd();
             int x1 = xAt(current.time);
             int x2 = xAt(end);
             if (x2 >= view.x && x1 <= view.x + view.width) {

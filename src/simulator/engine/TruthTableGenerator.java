@@ -7,14 +7,15 @@ import simulator.core.VoltageState;
 import simulator.parser.NetlistParser;
 import simulator.parser.TopologyValidator;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 public final class TruthTableGenerator {
     /** Testbench lines describe one run, so they do not apply when every input combination is tried. */
-    private static final Pattern TESTBENCH_LINE =
-            Pattern.compile("^\\s*(STIMULUS|ASSERT|SIM_TIME)\\s.*$", Pattern.CASE_INSENSITIVE);
+    private static final List<String> TESTBENCH_COMMANDS = List.of("STIMULUS", "ASSERT", "SIM_TIME");
 
     private final int maximumInputs;
 
@@ -94,14 +95,23 @@ public final class TruthTableGenerator {
         }
     }
 
-    /** Blanks testbench lines instead of removing them, so error line numbers still match the netlist. */
+    /**
+     * Blanks testbench lines instead of removing them, so error line numbers still match the netlist.
+     * Reads lines with BufferedReader because the browser build's regex engine rejects the \\R pattern.
+     */
     private static String removeTestbench(String netlist) {
         StringBuilder result = new StringBuilder();
-        for (String line : netlist.split("\\R", -1)) {
-            if (!TESTBENCH_LINE.matcher(line).matches()) {
-                result.append(line);
+        try (BufferedReader reader = new BufferedReader(new StringReader(netlist))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String command = line.trim().split("\\s+")[0].toUpperCase();
+                if (!TESTBENCH_COMMANDS.contains(command)) {
+                    result.append(line);
+                }
+                result.append('\n');
             }
-            result.append('\n');
+        } catch (IOException e) {
+            throw new IllegalStateException("Error reading netlist", e);
         }
         return result.toString();
     }

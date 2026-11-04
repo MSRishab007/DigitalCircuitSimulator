@@ -17,5 +17,7 @@ class WasmBridgeTest {
                 .contains("\"rows\""));
         assertTrue(WasmBridge.checkEquivalent(NETLIST, NETLIST, "A,B", "OUT")
                 .contains("\"equivalent\":true"));
+        assertTrue(WasmBridge.detectWires(NETLIST)
+                .contains("\"inputs\":[\"A\",\"B\"],\"outputs\":[\"OUT\"]"));
     }
 }

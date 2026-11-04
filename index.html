@@ -9,16 +9,21 @@
         * { box-sizing: border-box; }
         body { margin: 0; background: #ffffff; }
         main { max-width: 1200px; margin: auto; padding: 20px 16px; }
-        h1 { margin: 0 0 4px; font-size: 22px; }
-        h2 { margin: 16px 0 8px; font-size: 15px; }
-        section h2:first-child { margin-top: 0; }
-        p { margin: 0 0 16px; color: #5f6770; font-size: 14px; }
+        h1 { margin: 0 0 12px; font-size: 22px; }
+        h2 { margin: 0 0 8px; font-size: 15px; }
         label { display: block; margin-bottom: 4px; color: #5f6770; font-size: 13px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        code { font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
         .card { background: #ffffff; border: 1px solid #d8dbdf; border-radius: 4px; padding: 16px; min-width: 0; }
+        .notice { margin-bottom: 16px; padding: 12px 16px; background: #fbeeec; border: 1px solid #e6b8b3;
+            border-radius: 4px; font-size: 14px; }
+        .notice p { margin: 0 0 8px; }
+        .notice pre { margin: 0 0 8px; padding: 8px; background: #ffffff; border: 1px solid #e6b8b3;
+            border-radius: 3px; overflow: auto; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
+        .notice :last-child { margin-bottom: 0; }
         textarea, input { width: 100%; background: #ffffff; color: #1f2328; border: 1px solid #b9bec5;
             border-radius: 3px; padding: 6px 8px; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
-        textarea { min-height: 210px; resize: vertical; }
+        textarea { min-height: 210px; resize: vertical; margin-bottom: 8px; }
         input { margin-bottom: 10px; }
         textarea:focus, input:focus { outline: 2px solid #1d5fbf; outline-offset: -1px; }
         button { margin: 4px 4px 4px 0; padding: 7px 12px; color: #ffffff; background: #1d5fbf; border: 0;
@@ -29,80 +34,325 @@
         button[data-operation="simulate"]:hover { background: #15652f; }
         button[data-operation="validate"] { background: #0b7285; }
         button[data-operation="validate"]:hover { background: #085b6a; }
-        pre { margin: 0; padding: 8px; white-space: pre-wrap; overflow: auto; min-height: 100px;
-            background: #f3f4f6; border: 1px solid #d8dbdf; border-radius: 3px;
-            font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
+        button[data-operation="detect"], #download { background: #4b5563; }
+        button[data-operation="detect"]:hover, #download:hover { background: #374151; }
+        #result { font-size: 14px; }
+        #result > p { margin: 0 0 8px; }
+        .muted { color: #5f6770; }
+        .good { color: #1b7f3b; }
+        .bad { color: #b3261e; font-weight: 600; }
+        .warn { color: #b8500b; }
+        .scroll { overflow-x: auto; }
+        table { border-collapse: collapse; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
+        th, td { padding: 4px 12px; border: 1px solid #d8dbdf; text-align: center; }
+        th { background: #f3f4f6; font-family: "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif; }
+        .output { background: #eaf2fc; }
+        .high { color: #1b7f3b; }
+        .other { color: #b8500b; }
+        dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; margin: 0 0 12px; }
+        dt { color: #5f6770; }
+        dd { margin: 0; }
+        svg text { font-family: "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif; }
         @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 <main>
     <h1>Digital Circuit Simulator</h1>
-    <p>Browser client backed by the TeaVM-generated JavaScript engine.</p>
+    <div class="notice" id="engine-notice" hidden>
+        <p><strong>The simulator engine is not loaded.</strong>
+            This page needs <code>target/generated/js/simulator.js</code>, which is built on your computer
+            and is not stored in Git. From the repository folder, run:</p>
+        <pre>mvn package
+python -m http.server 8000</pre>
+        <p>Then open <code>http://localhost:8000/</code> and refresh this page.
+            If <code>mvn package</code> reports an error, that error is the cause to fix.</p>
+    </div>
     <div class="grid">
         <section class="card">
             <h2>Primary netlist</h2>
-            <textarea id="netlist">SIM_TIME 10
+            <textarea id="netlist" spellcheck="false">SIM_TIME 40
 WIRE A
 WIRE B
 WIRE OUT
-AND gate 0 A B OUT
+AND gate 5 A B OUT
 STIMULUS 0 A 1
-STIMULUS 0 B 1</textarea>
-            <label>Inputs (comma-separated)</label>
-            <input id="inputs" value="A,B">
-            <label>Outputs (comma-separated)</label>
-            <input id="outputs" value="OUT">
+STIMULUS 0 B 0
+STIMULUS 20 B 1</textarea>
+            <label for="inputs">Input wires (comma separated)</label>
+            <input id="inputs" value="A,B" spellcheck="false">
+            <label for="outputs">Output wires (comma separated)</label>
+            <input id="outputs" value="OUT" spellcheck="false">
             <button data-operation="simulate">Simulate</button>
             <button data-operation="validate">Validate</button>
             <button data-operation="analyze">Analyze timing</button>
             <button data-operation="truth-table">Truth table</button>
+            <button data-operation="detect">Detect wires</button>
         </section>
         <section class="card">
             <h2>Equivalence comparison</h2>
-            <textarea id="comparison">SIM_TIME 10
+            <textarea id="comparison" spellcheck="false">SIM_TIME 40
 WIRE A
 WIRE B
 WIRE OUT
-OR gate 0 A B OUT</textarea>
+OR gate 5 A B OUT</textarea>
             <button data-operation="equivalent">Check equivalence</button>
-            <h2>Result</h2>
-            <pre id="result">Build the project with Maven, then select an operation.</pre>
         </section>
     </div>
+    <section class="card">
+        <h2>Result</h2>
+        <div id="result" aria-live="polite"><p class="muted">Choose an operation above to see its result here.</p></div>
+    </section>
 </main>
 <script src="target/generated/js/simulator.js"></script>
 <script>
     const result = document.getElementById("result");
     const value = id => document.getElementById(id).value;
-    const show = text => {
-        try { result.textContent = JSON.stringify(JSON.parse(text), null, 2); }
-        catch (_) { result.textContent = text; }
+    const names = text => text.split(",").map(name => name.trim()).filter(name => name);
+    const engineLoaded = () => typeof runSimulation === "function" && typeof detectWires === "function";
+    const SVG = "http://www.w3.org/2000/svg";
+
+    document.getElementById("engine-notice").hidden = engineLoaded();
+
+    function element(tag, text, className) {
+        const node = document.createElement(tag);
+        if (text !== undefined) node.textContent = text;
+        if (className) node.className = className;
+        return node;
+    }
+
+    function line(text, className) {
+        result.append(element("p", text, className));
+    }
+
+    function details(rows) {
+        const list = element("dl");
+        rows.forEach(([term, description]) => {
+            list.append(element("dt", term), element("dd", String(description)));
+        });
+        result.append(list);
+    }
+
+    /** Applies the same rule as the desktop app: wires that are all missing belong to an old netlist. */
+    function chooseWires(netlist) {
+        const inputs = names(value("inputs"));
+        const outputs = names(value("outputs"));
+        const ports = JSON.parse(detectWires(netlist));
+        if (!ports.success) throw new Error(ports.error);
+        const typed = [...new Set([...inputs, ...outputs])];
+        const missing = typed.filter(name => !ports.wires.includes(name));
+        if (!inputs.length || !outputs.length || missing.length === typed.length) {
+            if (!ports.inputs.length || !ports.outputs.length) {
+                throw new Error("Could not detect input and output wires. Enter them above. "
+                    + "Wires in this netlist: " + ports.wires.join(", "));
+            }
+            document.getElementById("inputs").value = ports.inputs.join(",");
+            document.getElementById("outputs").value = ports.outputs.join(",");
+            return { inputs: ports.inputs, outputs: ports.outputs, detected: true };
+        }
+        if (missing.length) {
+            throw new Error("Not in this netlist: " + missing.join(", ")
+                + ". Wires in this netlist: " + ports.wires.join(", "));
+        }
+        return { inputs, outputs, detected: false };
+    }
+
+    function parseVcd(vcd) {
+        const symbols = new Map();
+        const signals = new Map();
+        let time = 0;
+        let end = 0;
+        vcd.split("\n").forEach(raw => {
+            const text = raw.trim();
+            if (text.startsWith("$var")) {
+                const parts = text.split(/\s+/);
+                symbols.set(parts[3], parts[4]);
+                signals.set(parts[4], []);
+            } else if (text.startsWith("#")) {
+                time = Number(text.slice(1));
+                end = Math.max(end, time);
+            } else if (/^[01xzXZ]./.test(text) && symbols.has(text.slice(1))) {
+                signals.get(symbols.get(text.slice(1))).push({ time, state: text[0].toLowerCase() });
+            }
+        });
+        return { signals, end };
+    }
+
+    function svgElement(tag, attributes, text) {
+        const node = document.createElementNS(SVG, tag);
+        Object.entries(attributes).forEach(([name, attribute]) => node.setAttribute(name, attribute));
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function drawWaveform({ signals, end }) {
+        const rowHeight = 40;
+        const top = 26;
+        const labelWidth = Math.max(100, ...[...signals.keys()].map(name => name.length * 8 + 20));
+        const axisEnd = Math.max(end + Math.max(1, Math.floor(end / 10)), 10);
+        const width = Math.max(560, Math.min(1100, labelWidth + axisEnd * 8));
+        const scale = (width - labelWidth - 30) / axisEnd;
+        const height = top + signals.size * rowHeight + 6;
+        const x = time => labelWidth + time * scale;
+        const svg = svgElement("svg", { width, height, viewBox: `0 0 ${width} ${height}`, role: "img",
+            "aria-label": "Waveform of every wire over time" });
+
+        let step = 1;
+        while (step * scale < 70) step *= [2, 2.5, 2][String(step).length % 3];
+        step = Math.ceil(step);
+        for (let time = 0; time <= axisEnd; time += step) {
+            svg.append(svgElement("line", { x1: x(time), x2: x(time), y1: top, y2: height, stroke: "#e6e8eb" }));
+            svg.append(svgElement("text", { x: x(time), y: 16, "font-size": 11, fill: "#5f6770",
+                "text-anchor": time === 0 ? "start" : "middle" }, time + " ns"));
+        }
+        svg.append(svgElement("line", { x1: 0, x2: width, y1: top, y2: top, stroke: "#d0d4d9" }));
+
+        const level = { "1": 8, "0": 32 };
+        const color = { "1": "#1b7f3b", "0": "#b3261e", z: "#b8500b" };
+        [...signals.entries()].forEach(([name, changes], row) => {
+            const y = top + row * rowHeight;
+            svg.append(svgElement("text", { x: 4, y: y + 24, "font-size": 12, "font-weight": 600, fill: "#1f2328" }, name));
+            svg.append(svgElement("line", { x1: 0, x2: width, y1: y + rowHeight - 1, y2: y + rowHeight - 1, stroke: "#e6e8eb" }));
+            changes.forEach((change, index) => {
+                const finish = index + 1 < changes.length ? changes[index + 1].time : axisEnd;
+                if (change.state === "x") {
+                    svg.append(svgElement("rect", { x: x(change.time), y: y + 8, width: Math.max(0, (finish - change.time) * scale),
+                        height: 24, fill: "#eceef1" }));
+                } else {
+                    const lineY = y + (level[change.state] ?? 20);
+                    svg.append(svgElement("line", { x1: x(change.time), x2: x(finish), y1: lineY, y2: lineY,
+                        stroke: color[change.state], "stroke-width": 2,
+                        "stroke-dasharray": change.state === "z" ? "5 4" : "none" }));
+                }
+                if (index > 0 && changes[index - 1].state !== change.state) {
+                    svg.append(svgElement("line", { x1: x(change.time), x2: x(change.time),
+                        y1: y + (level[changes[index - 1].state] ?? 20), y2: y + (level[change.state] ?? 20),
+                        stroke: "#1f2328" }));
+                }
+            });
+        });
+        const wrapper = element("div", undefined, "scroll");
+        wrapper.append(svg);
+        return wrapper;
+    }
+
+    function showSimulation(response) {
+        line(response.eventsProcessed === 0 ? "Nothing changed." : "Simulation finished.",
+            response.eventsProcessed === 0 ? "warn" : "good");
+        details([
+            ["Wires", response.wireCount],
+            ["Components", response.componentCount],
+            ["Simulated time", response.simulatedTime + " ns"],
+            ["Critical path delay", response.criticalPathDelay + " ns"],
+            ["Events processed", response.eventsProcessed],
+            ["Peak queue depth", response.peakQueueDepth]
+        ]);
+        if (response.eventsProcessed === 0) {
+            line("This netlist has no STIMULUS lines or CLOCK, so every wire stays X.", "warn");
+        }
+        result.append(drawWaveform(parseVcd(response.waveform)));
+        const download = element("button", "Download VCD");
+        download.id = "download";
+        download.addEventListener("click", () => {
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(new Blob([response.waveform], { type: "text/plain" }));
+            link.download = "output.vcd";
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+        result.append(download);
+    }
+
+    function showTruthTable(response, detected) {
+        line(response.rows.length + " rows. Shaded columns are outputs."
+            + (detected ? " The wires were detected from this netlist." : ""), "muted");
+        const table = element("table");
+        const heading = element("tr");
+        heading.append(element("th", "Row"));
+        response.inputs.forEach(name => heading.append(element("th", name)));
+        response.outputs.forEach(name => heading.append(element("th", name, "output")));
+        table.append(heading);
+        response.rows.forEach((row, index) => {
+            const cells = element("tr");
+            cells.append(element("td", index, "muted"));
+            const state = text => text === "1" ? "high" : text === "0" ? "" : "other";
+            row.inputs.forEach(text => cells.append(element("td", text, state(text))));
+            row.outputs.forEach(text => cells.append(element("td", text, ("output " + state(text)).trim())));
+            table.append(cells);
+        });
+        const wrapper = element("div", undefined, "scroll");
+        wrapper.append(table);
+        result.append(wrapper);
+    }
+
+    function pair(wires, states) {
+        return wires.map((name, index) => name + "=" + states[index]).join(", ");
+    }
+
+    const operations = {
+        simulate() {
+            showSimulation(check(runSimulation(value("netlist"))));
+        },
+        validate() {
+            const response = check(validateCircuit(value("netlist")));
+            line(response.message, response.valid ? "good" : "bad");
+        },
+        analyze() {
+            const response = check(analyzeCircuit(value("netlist")));
+            details([
+                ["Critical path delay", response.criticalPathDelay + " ns"],
+                ["Maximum clock frequency", response.criticalPathDelay === 0
+                    ? "not applicable (no gate delay on any path)"
+                    : response.maxClockFrequencyMHz.toFixed(2) + " MHz"]
+            ]);
+        },
+        "truth-table"() {
+            const wires = chooseWires(value("netlist"));
+            showTruthTable(check(generateTruthTable(value("netlist"),
+                wires.inputs.join(","), wires.outputs.join(","))), wires.detected);
+        },
+        detect() {
+            const ports = check(detectWires(value("netlist")));
+            document.getElementById("inputs").value = ports.inputs.join(",");
+            document.getElementById("outputs").value = ports.outputs.join(",");
+            details([["Inputs", ports.inputs.join(", ") || "none"], ["Outputs", ports.outputs.join(", ") || "none"]]);
+        },
+        equivalent() {
+            const wires = chooseWires(value("netlist"));
+            const response = check(checkEquivalent(value("netlist"), value("comparison"),
+                wires.inputs.join(","), wires.outputs.join(",")));
+            if (response.equivalent) {
+                line("Equivalent for all input combinations.", "good");
+                return;
+            }
+            line("Not equivalent.", "bad");
+            details([
+                ["Counterexample row", response.counterexampleRow],
+                ["Inputs", pair(wires.inputs, response.inputs)],
+                ["Primary outputs", pair(wires.outputs, response.firstOutputs)],
+                ["Comparison outputs", pair(wires.outputs, response.secondOutputs)]
+            ]);
+        }
     };
-    const names = () => [value("inputs"), value("outputs")];
+
+    function check(text) {
+        const response = JSON.parse(text);
+        if (!response.success) throw new Error(response.error);
+        return response;
+    }
 
     document.querySelectorAll("button[data-operation]").forEach(button => {
         button.addEventListener("click", () => {
+            result.replaceChildren();
+            if (!engineLoaded()) {
+                line("The simulator engine is not loaded. Follow the steps at the top of this page.", "bad");
+                document.getElementById("engine-notice").scrollIntoView();
+                return;
+            }
             try {
-                if (typeof runSimulation !== "function") {
-                    throw new Error("TeaVM engine is not loaded. Run mvn package first.");
-                }
-                const operation = button.dataset.operation;
-                const [inputs, outputs] = names();
-                let response;
-                if (operation === "simulate") response = runSimulation(value("netlist"));
-                if (operation === "validate") response = validateCircuit(value("netlist"));
-                if (operation === "analyze") response = analyzeCircuit(value("netlist"));
-                if (operation === "truth-table") {
-                    response = generateTruthTable(value("netlist"), inputs, outputs);
-                }
-                if (operation === "equivalent") {
-                    response = checkEquivalent(value("netlist"), value("comparison"),
-                        inputs, outputs);
-                }
-                show(response);
+                operations[button.dataset.operation]();
             } catch (error) {
-                show(JSON.stringify({ success: false, error: error.message }));
+                line(error.message, "bad");
             }
         });
     });

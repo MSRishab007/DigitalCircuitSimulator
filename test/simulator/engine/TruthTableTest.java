@@ -62,6 +62,18 @@ class TruthTableTest {
     }
 
     @Test
+    void handlesWindowsLineEndingsAndLowerCaseCommands() {
+        String netlist = "sim_time 5\r\nWIRE A\r\nWIRE B\r\nWIRE OUT\r\nAND gate 10 A B OUT\r\n"
+                + "stimulus 0 A 1\r\n  ASSERT 0 OUT 1\r\n";
+
+        TruthTable table = new TruthTableGenerator().generate(
+                netlist, List.of("A", "B"), List.of("OUT"));
+
+        assertEquals(List.of("1"), table.getRows().get(3).getOutputStates());
+        assertEquals(List.of("0"), table.getRows().get(0).getOutputStates());
+    }
+
+    @Test
     void explainsWhyClockedCircuitsAreRejected() {
         String netlist = "WIRE C\nWIRE D\nWIRE Q\nCLOCK clk 10 C\nDFF ff 1 D C Q\n";
 

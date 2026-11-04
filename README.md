@@ -111,6 +111,8 @@ java simulator.Main validate circuit.netlist
 java simulator.Main analyze circuit.netlist
 java simulator.Main truth-table circuit.netlist A,B SUM
 java simulator.Main equivalent circuit-a.netlist circuit-b.netlist A,B SUM
+java simulator.Main truth-table circuit.netlist
+java simulator.Main equivalent circuit-a.netlist circuit-b.netlist
 ```
 
 The simulation engine also exposes a `SimulationDebugger` API for stepping one
@@ -148,18 +150,24 @@ checkEquivalent(firstNetlist, secondNetlist, "A,B", "SUM")
 
 ## Browser demo
 
-Build the TeaVM client and serve the repository root over HTTP:
+The browser engine is built on your computer and is not stored in Git. From the
+repository folder, build it and serve the folder over HTTP:
 
 ```powershell
 mvn package
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000/`. The tracked [index.html](D:/Hp/Documents/Projects/DigitalCircuitSimulator/index.html)
-loads `target/generated/js/simulator.js` and exercises simulation, validation,
-timing analysis, truth-table generation, and equivalence checking. Serving the
-files over HTTP is required because browsers block some generated-script
-behaviors when the page is opened directly from `file://`.
+Open `http://localhost:8000/`. The page runs simulation, validation, timing
+analysis, truth tables, and equivalence checks, and draws the waveform.
+
+If the page says the engine is not loaded, `target/generated/js/simulator.js`
+is missing, so run `mvn package` and read any error it prints. To test the built
+engine without a browser, run:
+
+```powershell
+node scripts/browser-smoke-test.js
+```
 
 ## Outputs
 

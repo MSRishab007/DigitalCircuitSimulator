@@ -13,3 +13,12 @@ OR sum_or 10 A B Internal_OR
 AND sum_and1 10 A B Internal_AND
 NOT sum_not 10 Internal_AND Internal_NOT
 AND final_sum 10 Internal_OR Internal_NOT Sum
+
+# Testbench: try every input combination for 50 ns each
+SIM_TIME 200
+STIMULUS 0 A 0
+STIMULUS 0 B 0
+STIMULUS 50 B 1
+STIMULUS 100 A 1
+STIMULUS 100 B 0
+STIMULUS 150 B 1
