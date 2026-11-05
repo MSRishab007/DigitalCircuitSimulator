@@ -41,8 +41,9 @@ public class Wire {
     }
 
     public void updateVoltage(VoltageState newState) {
-        if (stuckAtState == null && (newState == VoltageState.HIGH_Z || driverStates.isEmpty())) {
-            updateLegacyVoltage(newState);
+        if (stuckAtState == null && newState != VoltageState.HIGH_Z && driverStates.isEmpty()) {
+            currentState = newState;
+            notifyObservers();
             return;
         }
         drive(EXTERNAL_DRIVER, newState);
@@ -83,28 +84,24 @@ public class Wire {
         }
     }
 
-    private void updateLegacyVoltage(VoltageState newState) {
-        if (newState == VoltageState.HIGH_Z) {
-            return;
-        }
-        currentState = newState;
-        notifyObservers();
-    }
-
     private VoltageState resolveDrivers() {
+        if (driverStates.isEmpty()) {
+            return VoltageState.HIGH_Z;
+        }
         boolean high = false;
         boolean low = false;
+        boolean unknown = false;
         for (VoltageState state : driverStates.values()) {
             high |= state == VoltageState.HIGH;
             low |= state == VoltageState.LOW;
+            unknown |= state == VoltageState.UNKNOWN;
         }
         if (high && low) {
             System.err.println("WARNING: Bus Contention (Short Circuit) on wire " + wireId);
             return VoltageState.UNKNOWN;
         }
-        if (high) return VoltageState.HIGH;
-        if (low) return VoltageState.LOW;
-        return VoltageState.UNKNOWN;
+        if (unknown) return VoltageState.UNKNOWN;
+        return high ? VoltageState.HIGH : VoltageState.LOW;
     }
 
     private void notifyObservers() {

@@ -209,7 +209,7 @@ public final class UserGuide {
                 new String[]{"1", "High. Drawn in green at the top of the waveform row."},
                 new String[]{"0", "Low. Drawn in red at the bottom of the waveform row."},
                 new String[]{"X", "Unknown. Nothing has driven the wire yet, an input is unknown, or drivers disagree. Drawn as a grey band."},
-                new String[]{"Z", "Disconnected. Drawn as a dashed orange line."});
+                new String[]{"Z", "Disconnected. Every tri-state buffer on the wire has let go of it, or a `STIMULUS` set it to Z. A gate reading the wire sees X. Drawn as a dashed orange line."});
         sink.paragraph("Short spikes at a change are normal. Gates take time to respond, and inputs that change together are processed one at a time, so a gate can briefly see a mix of old and new values.");
         sink.paragraph("Truth tables ignore `STIMULUS`, `ASSERT` and `SIM_TIME`, and try every input combination until the circuit settles. They allow at most 16 inputs and flip-flops combined.");
         sink.paragraph("`Critical path delay` is the slowest route through the gates, and `Critical path` names them. A route can start at a flip-flop, whose own delay counts as its clock-to-Q time, and it ends at the next flip-flop's D input. `Maximum clock frequency` follows from it. The resource count lists the components that make up the circuit.");

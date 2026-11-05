@@ -51,6 +51,7 @@ public final class SelfCheck {
         check("Wire with two gate drivers is rejected", this::driverConflict);
         check("Syntax error names its line", this::syntaxError);
         check("Static timing analysis and resource count", this::analysis);
+        check("A released tri-state bus reads Z", this::triState);
         check("Flip-flop clock-to-Q delay starts a timing path", this::flipFlopTiming);
         check("Fault coverage finds an untested fault", this::faultCoverage);
         check("Macros become modules on the schematic", this::modules);
@@ -232,6 +233,13 @@ public final class SelfCheck {
         expect(!timing.getCriticalPath().isEmpty(), "Expected the critical path's gates to be named");
         expectEqual("5 components (2 AND, 1 OR, 2 XOR), 8 wires",
                 service.resources(ExampleCircuits.defaultNetlist()).describe(), "Resources");
+    }
+
+    private void triState() {
+        SimulationRunner.SimulationResult result = service.simulate(
+                "SIM_TIME 50\nWIRE D\nWIRE E\nWIRE BUS\nBUFFER b 1 D E BUS\n"
+                        + "STIMULUS 0 D 1\nSTIMULUS 0 E 1\nSTIMULUS 20 E 0\nASSERT 10 BUS 1\nASSERT 30 BUS Z\n", null);
+        expect(result.getFailedAssertionCount() == 0, "Expected the bus to be Z after its buffer lets go");
     }
 
     private void flipFlopTiming() {

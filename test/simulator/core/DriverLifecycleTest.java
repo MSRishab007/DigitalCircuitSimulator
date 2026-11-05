@@ -16,7 +16,7 @@ class DriverLifecycleTest {
         output.driveSignal(VoltageState.HIGH);
         output.connect(newWire);
 
-        assertEquals(VoltageState.UNKNOWN, oldWire.getCurrentState());
+        assertEquals(VoltageState.HIGH_Z, oldWire.getCurrentState());
         assertEquals(VoltageState.UNKNOWN, newWire.getCurrentState());
     }
 

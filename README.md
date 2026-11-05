@@ -149,7 +149,7 @@ The [`samples`](samples) folder contains example netlists. Their outputs are in 
 | `full_adder.netlist` | Full adder built from a macro |
 | `two_bit_counter.netlist` | Sequential logic with a clock and flip-flops |
 | `dff_test.netlist` | Flip-flop behavior with a stuck-at fault on its input |
-| `testbench.netlist` | Tri-state buffer controlled by stimuli |
+| `testbench.netlist` | Tri-state buffer releasing its output to `Z` |
 
 Waveform of the two-bit counter:
 
@@ -204,4 +204,3 @@ These run the JUnit suite, the self-check of each major feature, and a test of t
 - Macros form a real hierarchy for structure and display, but simulation runs on the expanded gates.
 - FPGA placement and LUT mapping from the original paper are not implemented.
 - Truth tables allow at most 16 inputs and flip-flops combined.
-- A tri-state bus with no active driver is reported as `X` rather than `Z`.

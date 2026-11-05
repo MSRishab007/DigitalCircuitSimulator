@@ -60,7 +60,7 @@ class AllLogicGatesTest {
         engine.scheduleEvent(new SignalEvent(0, a, VoltageState.HIGH));
         engine.scheduleEvent(new SignalEvent(0, b, VoltageState.LOW));
         engine.runSimulation();
-        assertEquals(VoltageState.UNKNOWN, output.getCurrentState());
+        assertEquals(VoltageState.HIGH_Z, output.getCurrentState());
     }
 
     private void connect(LogicGate gate) {
