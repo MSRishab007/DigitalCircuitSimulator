@@ -3,359 +3,1710 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Digital Circuit Simulator</title>
+    <title>EDA Digital Circuit Simulator</title>
     <style>
-        :root { font-family: "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif; color: #1f2328; }
+        :root {
+            --text: #1f2328; --muted: #5f6770; --faint: #8a9199; --line: #d8dbdf; --header: #f3f4f6;
+            --current-line: #f5f6f8; --selection: #cfe2fa; --error-band: #fbdad7; --output-column: #eaf2fc;
+            --blue: #1d5fbf; --green: #1b7f3b; --teal: #0b7285; --orange: #b8500b; --slate: #4b5563; --error: #b3261e;
+            --ui: "Segoe UI", "Helvetica Neue", "Noto Sans", "DejaVu Sans", Arial, sans-serif;
+            --mono: Consolas, Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace;
+            color-scheme: light;
+        }
         * { box-sizing: border-box; }
-        body { margin: 0; background: #ffffff; }
-        main { max-width: 1200px; margin: auto; padding: 20px 16px; }
-        h1 { margin: 0 0 12px; font-size: 22px; }
-        h2 { margin: 0 0 8px; font-size: 15px; }
-        label { display: block; margin-bottom: 4px; color: #5f6770; font-size: 13px; }
-        code { font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-        .card { background: #ffffff; border: 1px solid #d8dbdf; border-radius: 4px; padding: 16px; min-width: 0; }
-        .notice { margin-bottom: 16px; padding: 12px 16px; background: #fbeeec; border: 1px solid #e6b8b3;
-            border-radius: 4px; font-size: 14px; }
-        .notice p { margin: 0 0 8px; }
-        .notice pre { margin: 0 0 8px; padding: 8px; background: #ffffff; border: 1px solid #e6b8b3;
-            border-radius: 3px; overflow: auto; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
-        .notice :last-child { margin-bottom: 0; }
-        textarea, input { width: 100%; background: #ffffff; color: #1f2328; border: 1px solid #b9bec5;
-            border-radius: 3px; padding: 6px 8px; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
-        textarea { min-height: 210px; resize: vertical; margin-bottom: 8px; }
-        input { margin-bottom: 10px; }
-        textarea:focus, input:focus { outline: 2px solid #1d5fbf; outline-offset: -1px; }
-        button { margin: 4px 4px 4px 0; padding: 7px 12px; color: #ffffff; background: #1d5fbf; border: 0;
-            border-radius: 3px; font: inherit; font-size: 13px; cursor: pointer; }
-        button:hover { background: #174c99; }
-        button:focus-visible { outline: 2px solid #1f2328; outline-offset: 1px; }
-        button[data-operation="simulate"] { background: #1b7f3b; }
-        button[data-operation="simulate"]:hover { background: #15652f; }
-        button[data-operation="validate"] { background: #0b7285; }
-        button[data-operation="validate"]:hover { background: #085b6a; }
-        button[data-operation="detect"], #download { background: #4b5563; }
-        button[data-operation="detect"]:hover, #download:hover { background: #374151; }
-        #result { font-size: 14px; }
-        #result > p { margin: 0 0 8px; }
-        .muted { color: #5f6770; }
-        .good { color: #1b7f3b; }
-        .bad { color: #b3261e; font-weight: 600; }
-        .warn { color: #b8500b; }
-        .scroll { overflow-x: auto; }
-        table { border-collapse: collapse; font: 13px Consolas, Menlo, "DejaVu Sans Mono", monospace; }
-        th, td { padding: 4px 12px; border: 1px solid #d8dbdf; text-align: center; }
-        th { background: #f3f4f6; font-family: "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif; }
-        .output { background: #eaf2fc; }
-        .high { color: #1b7f3b; }
-        .other { color: #b8500b; }
-        dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; margin: 0 0 12px; }
-        dt { color: #5f6770; }
-        dd { margin: 0; }
-        svg text { font-family: "Segoe UI", "Helvetica Neue", "Noto Sans", Arial, sans-serif; }
-        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+        html, body { height: 100%; margin: 0; }
+        body { display: flex; flex-direction: column; overflow: hidden; background: #ffffff; color: var(--text);
+            font: 13px var(--ui); }
+        [hidden] { display: none !important; }
+
+        button { padding: 0 12px; height: 28px; border: 0; border-radius: 3px; color: #ffffff; background: var(--blue);
+            font: 13px var(--ui); white-space: nowrap; cursor: pointer; }
+        button:hover:not(:disabled) { filter: brightness(0.85); }
+        button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+        button:disabled { background: #e4e6e9; color: #7d848c; cursor: default; }
+        .green { background: var(--green); } .teal { background: var(--teal); }
+        .orange { background: var(--orange); } .slate { background: var(--slate); }
+
+        .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .gap { width: 10px; }
+        .toolbar { flex: none; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+        select { height: 28px; max-width: 170px; padding: 0 4px; color: var(--text); background: #ffffff;
+            border: 1px solid #b9bec5; border-radius: 3px; font: 13px var(--ui); }
+
+        .notice { flex: none; padding: 8px 12px; background: #fbeeec; border-bottom: 1px solid #e6b8b3; }
+        .notice code { font: 12px var(--mono); }
+
+        .split { flex: 1; min-height: 0; display: flex; }
+        #left { flex: none; width: 36%; min-width: 240px; display: flex; flex-direction: column; }
+        #divider { flex: none; width: 5px; cursor: col-resize; position: relative; }
+        #divider::after { content: ""; position: absolute; top: 0; bottom: 0; left: 2px; width: 1px; background: var(--line); }
+        #right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        .section { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 37px;
+            padding: 0 8px 0 12px; background: var(--header); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+        .section .plain { color: var(--muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .tabs { flex: none; display: flex; height: 37px; overflow-x: auto; background: var(--header); border-bottom: 1px solid var(--line); }
+        .tabs button { height: 36px; padding: 0 12px; color: var(--muted); background: var(--header); border-radius: 0;
+            border-right: 1px solid var(--line); border-top: 2px solid transparent; }
+        .tabs button[aria-selected="true"] { color: var(--text); background: #ffffff; border-top-color: var(--blue); }
+        .panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .controls { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+            padding: 6px 10px; border-bottom: 1px solid var(--line); }
+        .readout { flex: none; min-height: 25px; padding: 4px 10px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+        input[type="text"] { height: 28px; padding: 0 6px; color: var(--text); background: #ffffff; border: 1px solid #b9bec5;
+            border-radius: 2px; font: 13px var(--mono); }
+        label { color: var(--muted); font-size: 12px; }
+
+        .editor { flex: 1; min-height: 0; display: flex; background: #ffffff; }
+        .gutter { flex: none; width: 46px; overflow: hidden; border-right: 1px solid var(--line); color: var(--faint);
+            font: 14px/20px var(--mono); text-align: right; user-select: none; }
+        .gutter div { padding-right: 8px; height: 20px; }
+        .gutter .now { color: var(--text); }
+        .gutter-lines { padding-top: 8px; }
+        .code { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+        .code pre, .code textarea { margin: 0; padding: 8px 10px; border: 0; font: 14px/20px var(--mono); tab-size: 4; white-space: pre; }
+        .code pre { position: absolute; top: 0; left: 0; min-width: 100%; pointer-events: none; }
+        .code pre div { height: 20px; margin: 0 -10px; padding: 0 10px; }
+        .code pre .now { background: var(--current-line); }
+        .code pre .bad-line { background: var(--error-band); }
+        .code textarea { position: absolute; inset: 0; width: 100%; height: 100%; resize: none; outline: none; overflow: auto;
+            color: transparent; background: transparent; caret-color: var(--text); }
+        .code textarea::selection { background: var(--selection); color: transparent; }
+        .small .code pre, .small .code textarea { font-size: 13px; }
+        .t-keyword { color: var(--blue); } .t-gate { color: var(--teal); } .t-number { color: var(--orange); } .t-comment { color: var(--faint); }
+
+        .log, .result-text { flex: 1; min-height: 0; margin: 0; padding: 8px 10px; overflow: auto; font: 13px/18px var(--mono); white-space: pre; }
+        .result-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .log .placeholder, .result-text.placeholder { color: var(--muted); font-family: var(--ui); white-space: pre-wrap; }
+        .l-error { color: var(--error); } .l-mark { color: var(--blue); } .l-rule { color: var(--faint); } .l-label { color: var(--muted); }
+        .c-good { color: var(--green); } .c-bad { color: var(--error); }
+
+        .canvas-view { flex: 1; min-height: 0; position: relative; overflow: auto; background: #ffffff; }
+        .canvas-view .spacer { position: absolute; top: 0; left: 0; width: 1px; height: 1px; }
+        .canvas-view canvas { position: sticky; top: 0; left: 0; display: block; }
+        .scrub { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px 2px; border-top: 1px solid var(--line); }
+        .scrub input { flex: 1; min-width: 60px; accent-color: var(--blue); }
+        .scrub span { width: 74px; color: var(--muted); font-size: 12px; }
+        .scrub + .readout { border-top: 0; }
+
+        .fields { flex: none; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+        .fields .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+        .fields label { display: block; margin-bottom: 4px; }
+        .fields input { width: 100%; }
+        .half { flex: 1 1 0; min-height: 90px; display: flex; flex-direction: column; }
+        .half.compare { flex-grow: 0.6; border-bottom: 1px solid var(--line); }
+        .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+        table { border-collapse: collapse; font: 13px var(--mono); }
+        th, td { min-width: 52px; height: 24px; padding: 0 10px; border: 1px solid var(--line); text-align: center; }
+        th { position: sticky; top: 0; background: var(--header); font: 700 12px var(--ui); }
+        td.row-number { color: var(--faint); } td.output { background: var(--output-column); }
+        td.high { color: var(--green); } td.other { color: var(--orange); }
+
+        .status { flex: none; display: flex; justify-content: space-between; gap: 16px; padding: 5px 12px;
+            border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+        .status .right { display: flex; gap: 16px; white-space: nowrap; }
+        #activity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        @media (max-width: 800px) {
+            body { display: block; height: auto; overflow: auto; }
+            .split { display: block; }
+            #left { width: 100% !important; height: 45vh; }
+            #divider { display: none; }
+            #right { height: 85vh; border-top: 1px solid var(--line); }
+            .fields .pair { grid-template-columns: 1fr; }
+            .status { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
-<main>
-    <h1>Digital Circuit Simulator</h1>
-    <div class="notice" id="engine-notice" hidden>
-        <p><strong>The simulator engine is not loaded.</strong>
-            This page needs <code>target/generated/js/simulator.js</code>, which is built on your computer
-            and is not stored in Git. From the repository folder, run:</p>
-        <pre>mvn package
-python -m http.server 8000</pre>
-        <p>Then open <code>http://localhost:8000/</code> and refresh this page.
-            If <code>mvn package</code> reports an error, that error is the cause to fix.</p>
+    <div class="toolbar row">
+        <button id="open" title="Open netlist (Ctrl+O)">Open</button>
+        <button id="save" title="Download netlist (Ctrl+S)">Save</button>
+        <select id="examples" aria-label="Load an example circuit">
+            <option value="">Load example</option>
+        </select>
+        <span class="gap"></span>
+        <button id="run" class="green" title="Run simulation (Ctrl+Enter)">Run simulation</button>
+        <button id="step" class="teal" title="Process the next event (F10)">Step event</button>
+        <button id="reset" class="orange" title="Restart stepping from time 0">Reset</button>
+        <input id="file" type="file" accept=".netlist,.txt,text/plain" hidden>
     </div>
-    <div class="grid">
-        <section class="card">
-            <h2>Primary netlist</h2>
-            <textarea id="netlist" spellcheck="false">SIM_TIME 40
-WIRE A
-WIRE B
-WIRE OUT
-AND gate 5 A B OUT
-STIMULUS 0 A 1
-STIMULUS 0 B 0
-STIMULUS 20 B 1</textarea>
-            <label for="inputs">Input wires (comma separated)</label>
-            <input id="inputs" value="A,B" spellcheck="false">
-            <label for="outputs">Output wires (comma separated)</label>
-            <input id="outputs" value="OUT" spellcheck="false">
-            <button data-operation="simulate">Simulate</button>
-            <button data-operation="validate">Validate</button>
-            <button data-operation="analyze">Analyze timing</button>
-            <button data-operation="truth-table">Truth table</button>
-            <button data-operation="detect">Detect wires</button>
-        </section>
-        <section class="card">
-            <h2>Equivalence comparison</h2>
-            <textarea id="comparison" spellcheck="false">SIM_TIME 40
-WIRE A
-WIRE B
-WIRE OUT
-OR gate 5 A B OUT</textarea>
-            <button data-operation="equivalent">Check equivalence</button>
-        </section>
+    <div class="notice" id="notice" hidden>
+        <strong>The simulator engine is not loaded.</strong>
+        Run <code>mvn package</code> and <code>python -m http.server 8000</code> in the repository folder,
+        then open <code>http://localhost:8000/</code>. If <code>mvn package</code> reports an error, that error is the cause to fix.
     </div>
-    <section class="card">
-        <h2>Result</h2>
-        <div id="result" aria-live="polite"><p class="muted">Choose an operation above to see its result here.</p></div>
-    </section>
-</main>
+    <div class="split">
+        <div id="left">
+            <div class="section"><span>HDL netlist editor</span><span class="plain" id="file-name">Untitled netlist</span></div>
+            <div class="editor" id="main-editor"></div>
+        </div>
+        <div id="divider" title="Drag to resize"></div>
+        <div id="right">
+            <div class="tabs" role="tablist">
+                <button role="tab" data-tab="log" aria-selected="true">Telemetry log</button>
+                <button role="tab" data-tab="wave" aria-selected="false">Waveform viewer</button>
+                <button role="tab" data-tab="schematic" aria-selected="false">Schematic</button>
+                <button role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
+            </div>
+
+            <div class="panel" data-panel="log">
+                <pre class="log" id="log"><span class="placeholder">Run a simulation to see its telemetry report here.</span></pre>
+            </div>
+
+            <div class="panel" data-panel="wave" hidden>
+                <div class="controls">
+                    <div class="row">
+                        <button id="wave-in" class="slate">Zoom in</button>
+                        <button id="wave-out" class="slate">Zoom out</button>
+                        <button id="wave-fit" class="slate">Fit</button>
+                        <button id="wave-clear" class="slate">Clear marker</button>
+                        <button id="wave-image">Save image</button>
+                        <button id="wave-vcd">Download VCD</button>
+                    </div>
+                    <div class="row">
+                        <label for="wave-filter">Filter</label>
+                        <input id="wave-filter" type="text" size="10" title="Show only signals whose name contains this text">
+                    </div>
+                </div>
+                <div class="canvas-view" id="wave-view"></div>
+                <div class="readout" id="wave-readout">&nbsp;</div>
+            </div>
+
+            <div class="panel" data-panel="schematic" hidden>
+                <div class="controls">
+                    <div class="row">
+                        <button id="sch-in" class="slate">Zoom in</button>
+                        <button id="sch-out" class="slate">Zoom out</button>
+                        <button id="sch-fit" class="slate">Fit</button>
+                        <button id="sch-image">Save image</button>
+                    </div>
+                </div>
+                <div class="canvas-view" id="sch-view"></div>
+                <div class="scrub">
+                    <button id="sch-prev" class="slate">Previous change</button>
+                    <input id="sch-time" type="range" min="0" max="1" value="0" aria-label="Simulation time">
+                    <button id="sch-next" class="slate">Next change</button>
+                    <span id="sch-time-label"></span>
+                </div>
+                <div class="readout" id="sch-readout">&nbsp;</div>
+            </div>
+
+            <div class="panel" data-panel="analysis" hidden>
+                <div class="fields">
+                    <div class="pair">
+                        <div><label for="inputs">Input wires (comma separated)</label><input id="inputs" type="text" spellcheck="false" value="Input_A,Input_B,Input_Cin"></div>
+                        <div><label for="outputs">Output wires (comma separated)</label><input id="outputs" type="text" spellcheck="false" value="Sum,CarryOut"></div>
+                    </div>
+                    <div class="row">
+                        <button id="detect" class="slate">Detect wires</button>
+                        <button id="truth">Generate truth table</button>
+                        <button id="timing">Analyze timing</button>
+                        <button id="validate" class="teal">Validate</button>
+                    </div>
+                </div>
+                <div class="half compare">
+                    <div class="section"><span>Comparison netlist</span><button id="equivalent">Check equivalence</button></div>
+                    <div class="editor small" id="compare-editor"></div>
+                </div>
+                <div class="half">
+                    <div class="section"><span>Analysis result</span><button id="csv" class="slate" disabled>Export CSV</button></div>
+                    <div class="result-text placeholder" id="result-text">Results from the buttons above appear here.</div>
+                    <div class="table-wrap" id="result-table" hidden></div>
+                    <div class="readout" id="truth-summary" hidden></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="status">
+        <span id="activity">Ready</span>
+        <span class="right"><span id="debug-status">No simulation loaded</span><span id="caret">Ln 1, Col 1</span></span>
+    </div>
+
 <script src="target/generated/js/simulator.js"></script>
 <script>
-    const result = document.getElementById("result");
-    const value = id => document.getElementById(id).value;
-    const names = text => text.split(",").map(name => name.trim()).filter(name => name);
-    const engineLoaded = () => typeof runSimulation === "function" && typeof detectWires === "function";
-    const SVG = "http://www.w3.org/2000/svg";
+(function () {
+    "use strict";
 
-    document.getElementById("engine-notice").hidden = engineLoaded();
+    const $ = id => document.getElementById(id);
+    const COLOR = { text: "#1f2328", muted: "#5f6770", faint: "#8a9199", line: "#3c444d", rule: "#d0d4d9", grid: "#e6e8eb",
+        port: "#b9bec5", blue: "#1d5fbf", green: "#1b7f3b", red: "#b3261e", orange: "#b8500b", unknown: "#8a9199", unknownFill: "#eceef1" };
+    const UI_FONT = '"Segoe UI", "Helvetica Neue", "Noto Sans", "DejaVu Sans", Arial, sans-serif';
+    const MONO_FONT = 'Consolas, Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace';
 
-    function element(tag, text, className) {
-        const node = document.createElement(tag);
-        if (text !== undefined) node.textContent = text;
-        if (className) node.className = className;
-        return node;
-    }
-
-    function line(text, className) {
-        result.append(element("p", text, className));
-    }
-
-    function details(rows) {
-        const list = element("dl");
-        rows.forEach(([term, description]) => {
-            list.append(element("dt", term), element("dd", String(description)));
-        });
-        result.append(list);
-    }
-
-    /** Applies the same rule as the desktop app: wires that are all missing belong to an old netlist. */
-    function chooseWires(netlist) {
-        const inputs = names(value("inputs"));
-        const outputs = names(value("outputs"));
-        const ports = JSON.parse(detectWires(netlist));
-        if (!ports.success) throw new Error(ports.error);
-        const typed = [...new Set([...inputs, ...outputs])];
-        const missing = typed.filter(name => !ports.wires.includes(name));
-        if (!inputs.length || !outputs.length || missing.length === typed.length) {
-            if (!ports.inputs.length || !ports.outputs.length) {
-                throw new Error("Could not detect input and output wires. Enter them above. "
-                    + "Wires in this netlist: " + ports.wires.join(", "));
-            }
-            document.getElementById("inputs").value = ports.inputs.join(",");
-            document.getElementById("outputs").value = ports.outputs.join(",");
-            return { inputs: ports.inputs, outputs: ports.outputs, detected: true };
-        }
-        if (missing.length) {
-            throw new Error("Not in this netlist: " + missing.join(", ")
-                + ". Wires in this netlist: " + ports.wires.join(", "));
-        }
-        return { inputs, outputs, detected: false };
-    }
-
-    function parseVcd(vcd) {
-        const symbols = new Map();
-        const signals = new Map();
-        let time = 0;
-        let end = 0;
-        vcd.split("\n").forEach(raw => {
-            const text = raw.trim();
-            if (text.startsWith("$var")) {
-                const parts = text.split(/\s+/);
-                symbols.set(parts[3], parts[4]);
-                signals.set(parts[4], []);
-            } else if (text.startsWith("#")) {
-                time = Number(text.slice(1));
-                end = Math.max(end, time);
-            } else if (/^[01xzXZ]./.test(text) && symbols.has(text.slice(1))) {
-                signals.get(symbols.get(text.slice(1))).push({ time, state: text[0].toLowerCase() });
-            }
-        });
-        return { signals, end };
-    }
-
-    function svgElement(tag, attributes, text) {
-        const node = document.createElementNS(SVG, tag);
-        Object.entries(attributes).forEach(([name, attribute]) => node.setAttribute(name, attribute));
-        if (text !== undefined) node.textContent = text;
-        return node;
-    }
-
-    function drawWaveform({ signals, end }) {
-        const rowHeight = 40;
-        const top = 26;
-        const labelWidth = Math.max(100, ...[...signals.keys()].map(name => name.length * 8 + 20));
-        const axisEnd = Math.max(end + Math.max(1, Math.floor(end / 10)), 10);
-        const width = Math.max(560, Math.min(1100, labelWidth + axisEnd * 8));
-        const scale = (width - labelWidth - 30) / axisEnd;
-        const height = top + signals.size * rowHeight + 6;
-        const x = time => labelWidth + time * scale;
-        const svg = svgElement("svg", { width, height, viewBox: `0 0 ${width} ${height}`, role: "img",
-            "aria-label": "Waveform of every wire over time" });
-
-        let step = 1;
-        while (step * scale < 70) step *= [2, 2.5, 2][String(step).length % 3];
-        step = Math.ceil(step);
-        for (let time = 0; time <= axisEnd; time += step) {
-            svg.append(svgElement("line", { x1: x(time), x2: x(time), y1: top, y2: height, stroke: "#e6e8eb" }));
-            svg.append(svgElement("text", { x: x(time), y: 16, "font-size": 11, fill: "#5f6770",
-                "text-anchor": time === 0 ? "start" : "middle" }, time + " ns"));
-        }
-        svg.append(svgElement("line", { x1: 0, x2: width, y1: top, y2: top, stroke: "#d0d4d9" }));
-
-        const level = { "1": 8, "0": 32 };
-        const color = { "1": "#1b7f3b", "0": "#b3261e", z: "#b8500b" };
-        [...signals.entries()].forEach(([name, changes], row) => {
-            const y = top + row * rowHeight;
-            svg.append(svgElement("text", { x: 4, y: y + 24, "font-size": 12, "font-weight": 600, fill: "#1f2328" }, name));
-            svg.append(svgElement("line", { x1: 0, x2: width, y1: y + rowHeight - 1, y2: y + rowHeight - 1, stroke: "#e6e8eb" }));
-            changes.forEach((change, index) => {
-                const finish = index + 1 < changes.length ? changes[index + 1].time : axisEnd;
-                if (change.state === "x") {
-                    svg.append(svgElement("rect", { x: x(change.time), y: y + 8, width: Math.max(0, (finish - change.time) * scale),
-                        height: 24, fill: "#eceef1" }));
-                } else {
-                    const lineY = y + (level[change.state] ?? 20);
-                    svg.append(svgElement("line", { x1: x(change.time), x2: x(finish), y1: lineY, y2: lineY,
-                        stroke: color[change.state], "stroke-width": 2,
-                        "stroke-dasharray": change.state === "z" ? "5 4" : "none" }));
-                }
-                if (index > 0 && changes[index - 1].state !== change.state) {
-                    svg.append(svgElement("line", { x1: x(change.time), x2: x(change.time),
-                        y1: y + (level[changes[index - 1].state] ?? 20), y2: y + (level[change.state] ?? 20),
-                        stroke: "#1f2328" }));
-                }
-            });
-        });
-        const wrapper = element("div", undefined, "scroll");
-        wrapper.append(svg);
-        return wrapper;
-    }
-
-    function showSimulation(response) {
-        line(response.eventsProcessed === 0 ? "Nothing changed." : "Simulation finished.",
-            response.eventsProcessed === 0 ? "warn" : "good");
-        details([
-            ["Wires", response.wireCount],
-            ["Components", response.componentCount],
-            ["Simulated time", response.simulatedTime + " ns"],
-            ["Critical path delay", response.criticalPathDelay + " ns"],
-            ["Events processed", response.eventsProcessed],
-            ["Peak queue depth", response.peakQueueDepth]
-        ]);
-        if (response.eventsProcessed === 0) {
-            line("This netlist has no STIMULUS lines or CLOCK, so every wire stays X.", "warn");
-        }
-        result.append(drawWaveform(parseVcd(response.waveform)));
-        const download = element("button", "Download VCD");
-        download.id = "download";
-        download.addEventListener("click", () => {
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(new Blob([response.waveform], { type: "text/plain" }));
-            link.download = "output.vcd";
-            link.click();
-            URL.revokeObjectURL(link.href);
-        });
-        result.append(download);
-    }
-
-    function showTruthTable(response, detected) {
-        line(response.rows.length + " rows. Shaded columns are outputs."
-            + (detected ? " The wires were detected from this netlist." : ""), "muted");
-        const table = element("table");
-        const heading = element("tr");
-        heading.append(element("th", "Row"));
-        response.inputs.forEach(name => heading.append(element("th", name)));
-        response.outputs.forEach(name => heading.append(element("th", name, "output")));
-        table.append(heading);
-        response.rows.forEach((row, index) => {
-            const cells = element("tr");
-            cells.append(element("td", index, "muted"));
-            const state = text => text === "1" ? "high" : text === "0" ? "" : "other";
-            row.inputs.forEach(text => cells.append(element("td", text, state(text))));
-            row.outputs.forEach(text => cells.append(element("td", text, ("output " + state(text)).trim())));
-            table.append(cells);
-        });
-        const wrapper = element("div", undefined, "scroll");
-        wrapper.append(table);
-        result.append(wrapper);
-    }
-
-    function pair(wires, states) {
-        return wires.map((name, index) => name + "=" + states[index]).join(", ");
-    }
-
-    const operations = {
-        simulate() {
-            showSimulation(check(runSimulation(value("netlist"))));
-        },
-        validate() {
-            const response = check(validateCircuit(value("netlist")));
-            line(response.message, response.valid ? "good" : "bad");
-        },
-        analyze() {
-            const response = check(analyzeCircuit(value("netlist")));
-            details([
-                ["Critical path delay", response.criticalPathDelay + " ns"],
-                ["Maximum clock frequency", response.criticalPathDelay === 0
-                    ? "not applicable (no gate delay on any path)"
-                    : response.maxClockFrequencyMHz.toFixed(2) + " MHz"]
-            ]);
-        },
-        "truth-table"() {
-            const wires = chooseWires(value("netlist"));
-            showTruthTable(check(generateTruthTable(value("netlist"),
-                wires.inputs.join(","), wires.outputs.join(","))), wires.detected);
-        },
-        detect() {
-            const ports = check(detectWires(value("netlist")));
-            document.getElementById("inputs").value = ports.inputs.join(",");
-            document.getElementById("outputs").value = ports.outputs.join(",");
-            details([["Inputs", ports.inputs.join(", ") || "none"], ["Outputs", ports.outputs.join(", ") || "none"]]);
-        },
-        equivalent() {
-            const wires = chooseWires(value("netlist"));
-            const response = check(checkEquivalent(value("netlist"), value("comparison"),
-                wires.inputs.join(","), wires.outputs.join(",")));
-            if (response.equivalent) {
-                line("Equivalent for all input combinations.", "good");
-                return;
-            }
-            line("Not equivalent.", "bad");
-            details([
-                ["Counterexample row", response.counterexampleRow],
-                ["Inputs", pair(wires.inputs, response.inputs)],
-                ["Primary outputs", pair(wires.outputs, response.firstOutputs)],
-                ["Comparison outputs", pair(wires.outputs, response.secondOutputs)]
-            ]);
-        }
+    const EXAMPLES = {
+        "Full adder": "# Sample Full Adder Netlist\nSIM_TIME 100\n\nWIRE Input_A\nWIRE Input_B\nWIRE Input_Cin\nWIRE Sum\nWIRE CarryOut\nWIRE Wire1\nWIRE Wire2\nWIRE Wire3\n\nXOR g1 10 Input_A Input_B Wire1\nXOR g2 10 Wire1 Input_Cin Sum\nAND g3 10 Input_A Input_B Wire2\nAND g4 10 Wire1 Input_Cin Wire3\nOR  g5 10 Wire2 Wire3 CarryOut\n\nSTIMULUS 0 Input_A 1\nSTIMULUS 0 Input_B 0\nSTIMULUS 0 Input_Cin 1\nSTIMULUS 50 Input_B 1\n",
+        "Half adder": "# Half adder\nSIM_TIME 200\n\nWIRE A\nWIRE B\nWIRE Carry\nWIRE Sum\n\nAND carry_and 10 A B Carry\nXOR sum_xor 10 A B Sum\n\n# Try every input combination for 50 ns each\nSTIMULUS 0 A 0\nSTIMULUS 0 B 0\nSTIMULUS 50 B 1\nSTIMULUS 100 A 1\nSTIMULUS 100 B 0\nSTIMULUS 150 B 1\n",
+        "Macro full adder": "SIM_TIME 100\n\n# A reusable half adder\nDEF HALF_ADDER IN_A IN_B OUT_SUM OUT_CARRY\nXOR s_xor 10 IN_A IN_B OUT_SUM\nAND c_and 10 IN_A IN_B OUT_CARRY\nENDDEF\n\nWIRE Input_X\nWIRE Input_Y\nWIRE Input_CarryIn\nWIRE Main_Sum\nWIRE Main_CarryOut\nWIRE HA1_Sum\nWIRE HA1_Carry\nWIRE HA2_Carry\n\nHALF_ADDER ha1 Input_X Input_Y HA1_Sum HA1_Carry\nHALF_ADDER ha2 HA1_Sum Input_CarryIn Main_Sum HA2_Carry\nOR final_carry 10 HA1_Carry HA2_Carry Main_CarryOut\n\nSTIMULUS 0 Input_X 1\nSTIMULUS 0 Input_Y 0\nSTIMULUS 0 Input_CarryIn 1\nSTIMULUS 50 Input_Y 1\n",
+        "2-bit counter": "# Counts 00, 01, 10, 11 on each rising clock edge\nSIM_TIME 200\n\nWIRE CLK\nWIRE D0\nWIRE Q0\nWIRE D1\nWIRE Q1\n\nCLOCK master 20 CLK\nDFF f0 2 D0 CLK Q0\nNOT n0 1 Q0 D0\nDFF f1 2 D1 CLK Q1\nXOR x1 1 Q0 Q1 D1\n",
+        "Stuck-at fault": "# Data_In is short-circuited to ground\nSIM_TIME 100\n\nWIRE System_Clock\nWIRE Data_In\nWIRE DFF_Output\n\nFAULT STUCK_AT_0 Data_In\n\nCLOCK MasterClk 20 System_Clock\nDFF RegisterA 5 Data_In System_Clock DFF_Output\n",
+        "Tri-state buffer": "SIM_TIME 100\n\nWIRE Data_Line\nWIRE Write_Enable\nWIRE Memory_Bus\nWIRE Inverted_Bus\n\nBUFFER mem_ctrl 5 Data_Line Write_Enable Memory_Bus\nNOT inverter1 5 Memory_Bus Inverted_Bus\n\nSTIMULUS 0 Data_Line 1\nSTIMULUS 0 Write_Enable 0\nSTIMULUS 20 Write_Enable 1\nSTIMULUS 50 Data_Line 0\nSTIMULUS 80 Write_Enable 0\n"
     };
 
-    function check(text) {
-        const response = JSON.parse(text);
+    const engineReady = () => ["runSimulation", "validateCircuit", "analyzeCircuit", "generateTruthTable", "checkEquivalent",
+        "detectWires", "schematicLayout", "debugStart", "debugStep"].every(name => typeof window[name] === "function");
+
+    function callEngine(name, ...args) {
+        const response = JSON.parse(window[name](...args));
         if (!response.success) throw new Error(response.error);
         return response;
     }
 
-    document.querySelectorAll("button[data-operation]").forEach(button => {
-        button.addEventListener("click", () => {
-            result.replaceChildren();
-            if (!engineLoaded()) {
-                line("The simulator engine is not loaded. Follow the steps at the top of this page.", "bad");
-                document.getElementById("engine-notice").scrollIntoView();
+    function setActivity(text, kind) {
+        const label = $("activity");
+        label.textContent = text;
+        label.title = text;
+        label.style.color = kind === "good" ? COLOR.green : kind === "bad" ? COLOR.red : kind === "warn" ? COLOR.orange : "";
+    }
+
+    function download(name, content, type) {
+        const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type: type || "text/plain" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // ------------------------------------------------------------------
+    // Code editor: a transparent textarea over coloured text
+    // ------------------------------------------------------------------
+
+    const DIRECTIVES = new Set(["WIRE", "SIM_TIME", "STIMULUS", "ASSERT", "FAULT", "DEF", "ENDDEF"]);
+
+    function colouredLine(text) {
+        const row = document.createElement("div");
+        const commentAt = text.indexOf("#");
+        const code = commentAt >= 0 ? text.slice(0, commentAt) : text;
+        let first = true;
+        code.split(/(\s+)/).forEach(token => {
+            if (!token) return;
+            if (/^\s+$/.test(token)) {
+                row.append(token);
                 return;
             }
+            const span = document.createElement("span");
+            span.textContent = token;
+            if (first && token === token.toUpperCase()) {
+                span.className = DIRECTIVES.has(token) ? "t-keyword" : "t-gate";
+            } else if (/^\d+$/.test(token)) {
+                span.className = "t-number";
+            }
+            first = false;
+            row.append(span);
+        });
+        if (commentAt >= 0) {
+            const span = document.createElement("span");
+            span.className = "t-comment";
+            span.textContent = text.slice(commentAt);
+            row.append(span);
+        }
+        if (!text) row.append("​");
+        return row;
+    }
+
+    function createEditor(host, options) {
+        const gutter = document.createElement("div");
+        gutter.className = "gutter";
+        const numbers = document.createElement("div");
+        numbers.className = "gutter-lines";
+        gutter.append(numbers);
+        const code = document.createElement("div");
+        code.className = "code";
+        const pre = document.createElement("pre");
+        const area = document.createElement("textarea");
+        area.spellcheck = false;
+        area.wrap = "off";
+        area.setAttribute("aria-label", options.label);
+        code.append(pre, area);
+        if (options.lineNumbers) host.append(gutter);
+        host.append(code);
+
+        let errorLine = -1;
+        let currentLine = -1;
+
+        function caretLine() {
+            return area.value.slice(0, area.selectionStart).split("\n").length - 1;
+        }
+
+        function syncScroll() {
+            pre.style.transform = `translate(${-area.scrollLeft}px, ${-area.scrollTop}px)`;
+            numbers.style.transform = `translateY(${-area.scrollTop}px)`;
+        }
+
+        function markLines() {
+            const line = caretLine();
+            if (line !== currentLine && options.lineNumbers) {
+                [pre.children[currentLine], numbers.children[currentLine]].forEach(row => row && row.classList.remove("now"));
+                [pre.children[line], numbers.children[line]].forEach(row => row && row.classList.add("now"));
+                currentLine = line;
+            }
+            if (options.onCaret) {
+                options.onCaret(line + 1, area.selectionStart - area.value.lastIndexOf("\n", area.selectionStart - 1));
+            }
+        }
+
+        function render() {
+            const lines = area.value.split("\n");
+            pre.replaceChildren(...lines.map(colouredLine));
+            if (options.lineNumbers) {
+                numbers.replaceChildren(...lines.map((_, index) => {
+                    const row = document.createElement("div");
+                    row.textContent = index + 1;
+                    return row;
+                }));
+            }
+            if (errorLine >= 0 && pre.children[errorLine]) pre.children[errorLine].classList.add("bad-line");
+            currentLine = -1;
+            markLines();
+            syncScroll();
+        }
+
+        area.addEventListener("input", () => {
+            errorLine = -1;
+            render();
+            if (options.onChange) options.onChange();
+        });
+        area.addEventListener("scroll", syncScroll);
+        ["keyup", "click", "select", "focus"].forEach(type => area.addEventListener(type, markLines));
+
+        return {
+            area,
+            get text() { return area.value; },
+            set(text) {
+                area.value = text;
+                area.setSelectionRange(0, 0);
+                area.scrollTop = 0;
+                area.scrollLeft = 0;
+                errorLine = -1;
+                render();
+            },
+            showError(line) {
+                errorLine = line;
+                render();
+                const starts = area.value.split("\n").slice(0, line).join("\n").length + (line > 0 ? 1 : 0);
+                area.setSelectionRange(starts, starts);
+                area.scrollTop = Math.max(0, line * 20 - area.clientHeight / 2);
+                markLines();
+                syncScroll();
+            }
+        };
+    }
+
+    // ------------------------------------------------------------------
+    // Canvas views: a scrolling area with a canvas pinned to the visible part
+    // ------------------------------------------------------------------
+
+    function createCanvasView(host, paint) {
+        const spacer = document.createElement("div");
+        spacer.className = "spacer";
+        const canvas = document.createElement("canvas");
+        host.append(spacer, canvas);
+        let scheduled = false;
+
+        function redraw() {
+            scheduled = false;
+            const width = host.clientWidth;
+            const height = host.clientHeight;
+            if (!width || !height) return;
+            const ratio = window.devicePixelRatio || 1;
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+            if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+                canvas.width = Math.round(width * ratio);
+                canvas.height = Math.round(height * ratio);
+            }
+            const g = canvas.getContext("2d");
+            g.setTransform(ratio, 0, 0, ratio, 0, 0);
+            g.fillStyle = "#ffffff";
+            g.fillRect(0, 0, width, height);
+            g.translate(-host.scrollLeft, -host.scrollTop);
+            paint(g, { x: host.scrollLeft, y: host.scrollTop, width, height });
+        }
+
+        const view = {
+            host, canvas,
+            redraw() {
+                if (!scheduled) {
+                    scheduled = true;
+                    requestAnimationFrame(redraw);
+                }
+            },
+            setContentSize(width, height) {
+                spacer.style.width = width + "px";
+                spacer.style.height = height + "px";
+            },
+            point(event) {
+                const box = canvas.getBoundingClientRect();
+                return { x: event.clientX - box.left + host.scrollLeft, y: event.clientY - box.top + host.scrollTop };
+            }
+        };
+        host.addEventListener("scroll", view.redraw);
+        new ResizeObserver(() => { if (view.onResize) view.onResize(); view.redraw(); }).observe(host);
+        return view;
+    }
+
+    function canvasToPng(width, height, paint, name) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width * 2;
+        canvas.height = height * 2;
+        const g = canvas.getContext("2d");
+        g.scale(2, 2);
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, width, height);
+        paint(g);
+        canvas.toBlob(blob => download(name, blob));
+    }
+
+    function line(g, x1, y1, x2, y2) {
+        g.beginPath();
+        g.moveTo(x1, y1);
+        g.lineTo(x2, y2);
+        g.stroke();
+    }
+
+    function stateColor(state) {
+        if (state === "1") return COLOR.green;
+        if (state === "0") return COLOR.red;
+        if (state === "z") return COLOR.orange;
+        return state === undefined ? COLOR.line : COLOR.unknown;
+    }
+
+    // ------------------------------------------------------------------
+    // Waveform viewer
+    // ------------------------------------------------------------------
+
+    const waveform = (function () {
+        const ROW = 46, HEADER = 28, RIGHT = 36, HIGH = 9, MID = 22, LOW = 35, SNAP = 6, MAX_ZOOM = 200, MIN_AXIS = 10;
+        const LABEL_FONT = `bold 12px ${MONO_FONT}`;
+        const AXIS_FONT = `11px ${UI_FONT}`;
+        let signals = new Map();
+        let vcd = null;
+        let maxTime = 0;
+        let filter = "";
+        let fit = true;
+        let zoom = 1;
+        let cursor = null;
+        let marker = null;
+        const measure = document.createElement("canvas").getContext("2d");
+
+        const axisEnd = () => Math.max(maxTime + Math.max(1, Math.floor(maxTime / 10)), MIN_AXIS);
+        const visible = () => [...signals.keys()].filter(name => !filter || name.toLowerCase().includes(filter));
+        const hasActivity = () => [...signals.values()].some(changes => changes.length > 1);
+
+        function labelWidth() {
+            measure.font = LABEL_FONT;
+            let widest = 0;
+            for (const name of signals.keys()) widest = Math.max(widest, measure.measureText(name).width);
+            return Math.max(110, Math.ceil(widest) + 44);
+        }
+
+        const fitted = () => Math.max(0.0001, (view.host.clientWidth - labelWidth() - RIGHT) / axisEnd());
+        const scale = () => fit ? fitted() : zoom;
+        const xAt = time => labelWidth() + Math.round(time * scale());
+        const timeAt = x => (x - labelWidth()) / scale();
+
+        function stateAt(changes, time) {
+            let state = "x";
+            for (const change of changes) {
+                if (change.time > time) break;
+                state = change.state;
+            }
+            return state;
+        }
+
+        function tickStep(perNs) {
+            const wanted = 80 / perNs;
+            let magnitude = 1;
+            while (magnitude * 10 <= wanted) magnitude *= 10;
+            for (const multiple of [1, 2, 5, 10]) {
+                if (magnitude * multiple >= wanted) return magnitude * multiple;
+            }
+            return magnitude * 10;
+        }
+
+        function publish() {
+            let text;
+            if (signals.size && !hasActivity()) {
+                text = "No wire changes value. Add STIMULUS lines or a CLOCK to drive this circuit's inputs.";
+            } else if (cursor === null && marker === null) {
+                text = signals.size ? "Hover to read values. Click to place a marker. Ctrl+scroll to zoom." : " ";
+            } else {
+                const parts = [];
+                if (cursor !== null) parts.push(`Cursor ${cursor} ns`);
+                if (marker !== null) parts.push(`Marker ${marker} ns`);
+                if (cursor !== null && marker !== null) parts.push(`Difference ${Math.abs(cursor - marker)} ns`);
+                text = parts.join("  ");
+            }
+            $("wave-readout").textContent = text;
+        }
+
+        function colorFor(state) {
+            return stateColor(state);
+        }
+
+        function levelOf(state) {
+            return state === "1" ? HIGH : state === "0" ? LOW : MID;
+        }
+
+        function paintSegment(g, x1, x2, y, state) {
+            g.setLineDash([]);
+            if (state === "1" || state === "0") {
+                g.strokeStyle = colorFor(state);
+                g.lineWidth = 2;
+                line(g, x1, y + levelOf(state), x2, y + levelOf(state));
+            } else if (state === "z") {
+                g.strokeStyle = COLOR.orange;
+                g.lineWidth = 1.5;
+                g.setLineDash([5, 4]);
+                line(g, x1, y + MID, x2, y + MID);
+                g.setLineDash([]);
+            } else {
+                g.fillStyle = COLOR.unknownFill;
+                g.fillRect(x1, y + HIGH, Math.max(1, x2 - x1), LOW - HIGH);
+                if (x2 - x1 > 24) {
+                    g.fillStyle = COLOR.muted;
+                    g.font = AXIS_FONT;
+                    g.fillText("X", (x1 + x2) / 2 - 3, y + MID + 4);
+                }
+            }
+        }
+
+        function paint(g, area, exporting) {
+            if (!signals.size) {
+                g.font = `13px ${UI_FONT}`;
+                g.fillStyle = COLOR.muted;
+                g.fillText("Run a simulation to generate waveforms.", area.x + 16, area.y + 28);
+                return;
+            }
+            g.textBaseline = "alphabetic";
+            const names = visible();
+            const labels = labelWidth();
+            const bottom = HEADER + names.length * ROW;
+            const step = tickStep(scale());
+            const firstTick = Math.max(0, Math.floor(timeAt(area.x + labels) / step)) * step;
+            const lastTime = Math.min(axisEnd(), Math.ceil(timeAt(area.x + area.width)));
+
+            g.save();
+            g.beginPath();
+            g.rect(area.x + labels, area.y + HEADER, area.width - labels, area.height - HEADER);
+            g.clip();
+            g.strokeStyle = COLOR.grid;
+            g.lineWidth = 1;
+            for (let t = firstTick; t <= lastTime; t += step) line(g, xAt(t) + 0.5, 0, xAt(t) + 0.5, bottom);
+            names.forEach((name, row) => {
+                const y = HEADER + row * ROW;
+                if (y + ROW < area.y || y > area.y + area.height) return;
+                const changes = signals.get(name);
+                changes.forEach((change, index) => {
+                    const end = index + 1 < changes.length ? changes[index + 1].time : axisEnd();
+                    const x1 = xAt(change.time), x2 = xAt(end);
+                    if (x2 < area.x || x1 > area.x + area.width) return;
+                    paintSegment(g, x1, x2, y, change.state);
+                    if (index > 0) {
+                        g.strokeStyle = COLOR.text;
+                        g.lineWidth = 1;
+                        line(g, x1 + 0.5, y + levelOf(changes[index - 1].state), x1 + 0.5, y + levelOf(change.state));
+                    }
+                });
+            });
+            if (!exporting && cursor !== null) {
+                g.strokeStyle = COLOR.blue;
+                g.lineWidth = 1;
+                line(g, xAt(cursor) + 0.5, 0, xAt(cursor) + 0.5, bottom);
+            }
+            if (marker !== null) {
+                g.strokeStyle = COLOR.orange;
+                g.lineWidth = 1;
+                g.setLineDash([4, 3]);
+                line(g, xAt(marker) + 0.5, 0, xAt(marker) + 0.5, bottom);
+                g.setLineDash([]);
+            }
+            g.restore();
+
+            // Frozen signal names, with the value at the cursor beside each one.
+            g.fillStyle = "#ffffff";
+            g.fillRect(area.x, area.y, labels, area.height);
+            g.font = LABEL_FONT;
+            const readAt = !exporting && cursor !== null ? cursor : marker;
+            names.forEach((name, row) => {
+                const y = HEADER + row * ROW;
+                const baseline = y + MID + 4;
+                g.fillStyle = COLOR.text;
+                g.fillText(name, area.x + 10, baseline);
+                if (readAt !== null) {
+                    const state = stateAt(signals.get(name), readAt);
+                    g.fillStyle = stateColor(state);
+                    g.fillText(state.toUpperCase(), area.x + labels - 20, baseline);
+                }
+                g.strokeStyle = COLOR.grid;
+                g.lineWidth = 1;
+                line(g, area.x, y + ROW - 0.5, area.x + labels, y + ROW - 0.5);
+            });
+            g.strokeStyle = COLOR.rule;
+            line(g, area.x + labels + 0.5, area.y, area.x + labels + 0.5, area.y + area.height);
+
+            // Frozen time axis.
+            g.fillStyle = "#ffffff";
+            g.fillRect(area.x, area.y, area.width, HEADER);
+            g.font = AXIS_FONT;
+            g.fillStyle = COLOR.muted;
+            g.fillText("Signal", area.x + 10, area.y + 18);
+            g.save();
+            g.beginPath();
+            g.rect(area.x + labels, area.y, area.width - labels, HEADER);
+            g.clip();
+            for (let t = firstTick; t <= lastTime; t += step) {
+                const label = t + " ns";
+                g.fillText(label, xAt(t) - (t === 0 ? 0 : g.measureText(label).width / 2), area.y + 18);
+            }
+            g.restore();
+            g.strokeStyle = COLOR.rule;
+            line(g, area.x, area.y + HEADER - 0.5, area.x + area.width, area.y + HEADER - 0.5);
+        }
+
+        const view = createCanvasView($("wave-view"), (g, area) => paint(g, area, false));
+
+        function updateSize() {
+            const height = signals.size ? HEADER + visible().length * ROW + 10 : 0;
+            const width = !signals.size || fit ? 0 : labelWidth() + Math.ceil(axisEnd() * zoom) + RIGHT;
+            view.setContentSize(width, height);
+            view.redraw();
+        }
+        view.onResize = updateSize;
+
+        function zoomAround(anchorX, factor) {
+            if (!signals.size) return;
+            const offset = anchorX - view.host.scrollLeft;
+            const anchorTime = timeAt(anchorX);
+            const next = Math.min(MAX_ZOOM, scale() * factor);
+            if (next <= fitted()) {
+                fit = true;
+                view.host.scrollLeft = 0;
+            } else {
+                fit = false;
+                zoom = next;
+            }
+            updateSize();
+            view.host.scrollLeft = xAt(anchorTime) - offset;
+            view.redraw();
+        }
+
+        function snap(time) {
+            let best = time;
+            let distance = SNAP / Math.max(scale(), 1e-9);
+            for (const name of visible()) {
+                for (const change of signals.get(name)) {
+                    const gap = Math.abs(change.time - time);
+                    if (gap < distance) {
+                        distance = gap;
+                        best = change.time;
+                    }
+                }
+            }
+            return best;
+        }
+
+        function moveCursor(event) {
+            const point = view.point(event);
+            cursor = !signals.size || point.x < view.host.scrollLeft + labelWidth() ? null
+                : snap(Math.max(0, Math.min(axisEnd(), Math.round(timeAt(point.x)))));
+            publish();
+            view.redraw();
+        }
+
+        view.host.addEventListener("pointermove", moveCursor);
+        view.host.addEventListener("pointerleave", () => { cursor = null; publish(); view.redraw(); });
+        view.host.addEventListener("pointerdown", event => {
+            moveCursor(event);
+            if (cursor !== null) {
+                marker = cursor;
+                publish();
+                view.redraw();
+            }
+        });
+        view.host.addEventListener("wheel", event => {
+            if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                zoomAround(view.point(event).x, event.deltaY < 0 ? 1.25 : 0.8);
+            }
+        }, { passive: false });
+
+        const centre = () => view.host.scrollLeft + view.host.clientWidth / 2;
+        $("wave-in").addEventListener("click", () => zoomAround(centre(), 1.5));
+        $("wave-out").addEventListener("click", () => zoomAround(centre(), 1 / 1.5));
+        $("wave-fit").addEventListener("click", () => { fit = true; view.host.scrollLeft = 0; updateSize(); });
+        $("wave-clear").addEventListener("click", () => { marker = null; publish(); view.redraw(); });
+        $("wave-filter").addEventListener("input", event => { filter = event.target.value.trim().toLowerCase(); updateSize(); });
+        $("wave-vcd").addEventListener("click", () => {
+            if (vcd) download("output.vcd", vcd);
+            else setActivity("Run a simulation before downloading the waveform", "bad");
+        });
+        $("wave-image").addEventListener("click", () => {
+            if (!signals.size) {
+                setActivity("Run a simulation before saving the waveform", "bad");
+                return;
+            }
+            const width = Math.max(view.host.scrollWidth, 400);
+            const height = HEADER + visible().length * ROW + 10;
+            const savedFit = fit, savedZoom = zoom;
+            zoom = scale();
+            fit = false;
+            canvasToPng(width, height, g => paint(g, { x: 0, y: 0, width, height }, true), "waveform.png");
+            fit = savedFit;
+            zoom = savedZoom;
+        });
+        publish();
+        updateSize();
+
+        return {
+            load(text) {
+                vcd = text;
+                signals = new Map();
+                maxTime = 0;
+                const symbols = new Map();
+                let time = 0;
+                text.split("\n").forEach(raw => {
+                    const row = raw.trim();
+                    if (row.startsWith("$var")) {
+                        const parts = row.split(/\s+/);
+                        if (parts.length >= 5) {
+                            symbols.set(parts[3], parts[4]);
+                            signals.set(parts[4], []);
+                        }
+                    } else if (row.startsWith("#")) {
+                        time = Number(row.slice(1));
+                        maxTime = Math.max(maxTime, time);
+                    } else if (/^[01xzXZ]./.test(row) && symbols.has(row.slice(1))) {
+                        signals.get(symbols.get(row.slice(1))).push({ time, state: row[0].toLowerCase() });
+                    }
+                });
+                if (marker !== null && marker > maxTime) marker = null;
+                cursor = null;
+                publish();
+                updateSize();
+            },
+            hasSignals: () => signals.size > 0,
+            maxTime: () => maxTime,
+            valueAt(wire, time) {
+                const changes = signals.get(wire);
+                return changes ? stateAt(changes, time) : undefined;
+            },
+            nextEdge(time) {
+                let best = Infinity;
+                for (const changes of signals.values()) {
+                    for (const change of changes) {
+                        if (change.time > time && change.time < best) best = change.time;
+                    }
+                }
+                return best === Infinity ? time : best;
+            },
+            previousEdge(time) {
+                let best = 0;
+                for (const changes of signals.values()) {
+                    for (const change of changes) {
+                        if (change.time < time && change.time > best) best = change.time;
+                    }
+                }
+                return best;
+            }
+        };
+    })();
+
+    // ------------------------------------------------------------------
+    // Schematic
+    // ------------------------------------------------------------------
+
+    const schematic = (function () {
+        const SYMBOL_W = 44, SYMBOL_H = 36, HIT = 5, AUTO_FLOOR = 0.45;
+        let circuit = null;
+        let message = "Open this tab with a netlist in the editor to draw its schematic.";
+        let values = null;
+        let scale = 1;
+        let fitting = true;
+        let floor = AUTO_FLOOR;
+        let hoveredWire = null;
+        let hoveredNode = null;
+
+        const valueOf = wire => values ? values(wire) : undefined;
+
+        function andShape(width) {
+            const body = width * 0.45;
+            const control = body + (width - body) / 0.75;
+            const path = new Path2D();
+            path.moveTo(0, 0);
+            path.lineTo(body, 0);
+            path.bezierCurveTo(control, 0, control, 36, body, 36);
+            path.lineTo(0, 36);
+            path.closePath();
+            return path;
+        }
+
+        function orShape(start, end) {
+            const span = end - start;
+            const path = new Path2D();
+            path.moveTo(start, 0);
+            path.bezierCurveTo(start + span * 0.4, 0, start + span * 0.78, 6, end, 18);
+            path.bezierCurveTo(start + span * 0.78, 30, start + span * 0.4, 36, start, 36);
+            path.quadraticCurveTo(start + 10, 18, start, 0);
+            path.closePath();
+            return path;
+        }
+
+        function triangle(width) {
+            const path = new Path2D();
+            path.moveTo(0, 1);
+            path.lineTo(width, 18);
+            path.lineTo(0, 35);
+            path.closePath();
+            return path;
+        }
+
+        function symbol(kind) {
+            switch (kind) {
+                case "AND": return andShape(44);
+                case "NAND": return andShape(38);
+                case "OR": return orShape(0, 44);
+                case "NOR": return orShape(0, 38);
+                case "XOR": {
+                    const path = orShape(6, 44);
+                    path.moveTo(0, 0);
+                    path.quadraticCurveTo(10, 18, 0, 36);
+                    return path;
+                }
+                case "NOT": return triangle(34);
+                case "BUFFER": return triangle(SYMBOL_W);
+                default: {
+                    const path = new Path2D();
+                    path.rect(0, 0, SYMBOL_W - 4, SYMBOL_H);
+                    return path;
+                }
+            }
+        }
+
+        function bubble(g, x) {
+            g.beginPath();
+            g.arc(x + 3, 18, 3, 0, Math.PI * 2);
+            g.fillStyle = "#ffffff";
+            g.fill();
+            g.strokeStyle = COLOR.text;
+            g.lineWidth = 1.5;
+            g.stroke();
+        }
+
+        function symbolDetails(g, kind) {
+            g.font = `bold 9px ${UI_FONT}`;
+            g.fillStyle = COLOR.muted;
+            switch (kind) {
+                case "AND": g.fillText("AND", 8, 22); break;
+                case "OR": g.fillText("OR", 12, 22); break;
+                case "XOR": g.fillText("XOR", 13, 22); break;
+                case "NAND": bubble(g, 38); g.fillStyle = COLOR.muted; g.fillText("NAND", 3, 22); break;
+                case "NOR": bubble(g, 38); g.fillStyle = COLOR.muted; g.fillText("NOR", 8, 22); break;
+                case "NOT": bubble(g, 34); break;
+                case "BUFFER": g.fillText("en", 3, 28); break;
+                case "DFF": {
+                    g.fillStyle = COLOR.text;
+                    g.fillText("D", 4, 10);
+                    g.fillText("Q", SYMBOL_W - 9 - g.measureText("Q").width, 22);
+                    g.strokeStyle = COLOR.text;
+                    g.lineWidth = 1.2;
+                    g.beginPath();
+                    g.moveTo(0, 25); g.lineTo(7, 30); g.lineTo(0, 35);
+                    g.stroke();
+                    break;
+                }
+                case "CLOCK": {
+                    g.strokeStyle = COLOR.text;
+                    g.lineWidth = 1.4;
+                    g.beginPath();
+                    g.moveTo(7, 25); g.lineTo(14, 25); g.lineTo(14, 11); g.lineTo(25, 11); g.lineTo(25, 25); g.lineTo(36, 25);
+                    g.stroke();
+                    break;
+                }
+                case "OTHER": g.fillText("?", 20, 22); break;
+                default: break;
+            }
+        }
+
+        function paintNet(g, net) {
+            const value = valueOf(net.wire);
+            const hovered = net.wire === hoveredWire;
+            g.strokeStyle = g.fillStyle = stateColor(value);
+            g.lineWidth = hovered ? 2.6 : 1.6;
+            g.lineCap = value === "z" ? "butt" : "round";
+            g.setLineDash(value === "z" ? [5, 4] : []);
+            net.segments.forEach(s => line(g, s[0], s[1], s[2], s[3]));
+            g.setLineDash([]);
+            net.junctions.forEach(p => {
+                g.beginPath();
+                g.arc(p[0], p[1], 3, 0, Math.PI * 2);
+                g.fill();
+            });
+        }
+
+        function paintPort(g, node) {
+            const hovered = node.id === hoveredWire;
+            const value = valueOf(node.id);
+            const top = node.y - node.height / 2;
+            g.fillStyle = "#ffffff";
+            g.beginPath();
+            g.roundRect(node.x, top, node.width, node.height, 3);
+            g.fill();
+            g.strokeStyle = hovered ? COLOR.blue : COLOR.port;
+            g.lineWidth = hovered ? 2 : 1;
+            g.stroke();
+            g.font = `bold 12px ${MONO_FONT}`;
+            const baseline = node.y + 4;
+            g.fillStyle = COLOR.text;
+            g.fillText(node.id, node.x + 8, baseline);
+            const end = node.x + 8 + g.measureText(node.id).width;
+            const info = circuit.wires[node.id];
+            if (info && info.fault) {
+                g.font = `10px ${UI_FONT}`;
+                g.fillStyle = COLOR.orange;
+                g.fillText(info.fault, end + 6, baseline);
+                g.font = `bold 12px ${MONO_FONT}`;
+            }
+            if (value !== undefined) {
+                g.fillStyle = stateColor(value);
+                g.fillText(value.toUpperCase(), node.x + node.width - 16, baseline);
+            }
+        }
+
+        function paintComponent(g, node) {
+            const hovered = node === hoveredNode;
+            const left = node.x + Math.floor((node.width - SYMBOL_W) / 2);
+            const top = node.y - SYMBOL_H / 2;
+            g.strokeStyle = COLOR.line;
+            g.lineWidth = 1.4;
+            node.inputs.forEach(y => line(g, node.x, y, left + 10, y));
+            line(g, left + SYMBOL_W - 4, node.y, node.x + node.width, node.y);
+
+            g.save();
+            g.translate(left, top);
+            const shape = symbol(node.kind);
+            g.fillStyle = "#ffffff";
+            g.fill(shape);
+            g.strokeStyle = hovered ? COLOR.blue : COLOR.text;
+            g.lineWidth = hovered ? 2.2 : 1.5;
+            g.stroke(shape);
+            symbolDetails(g, node.kind);
+            g.restore();
+
+            g.font = `11px ${UI_FONT}`;
+            g.fillStyle = hovered ? COLOR.blue : COLOR.muted;
+            g.fillText(node.id, node.x + (node.width - g.measureText(node.id).width) / 2, node.y + node.height / 2 - 3);
+        }
+
+        function paintCircuit(g) {
+            g.textBaseline = "alphabetic";
+            circuit.nets.filter(net => net.wire !== hoveredWire).forEach(net => paintNet(g, net));
+            circuit.nets.filter(net => net.wire === hoveredWire).forEach(net => paintNet(g, net));
+            g.lineCap = "butt";
+            circuit.nodes.forEach(node => {
+                if (node.kind === "INPUT" || node.kind === "OUTPUT") {
+                    paintPort(g, node);
+                } else if (node.kind === "BUS") {
+                    g.fillStyle = stateColor(valueOf(node.id));
+                    g.beginPath();
+                    g.arc(node.x + 5, node.y, 5, 0, Math.PI * 2);
+                    g.fill();
+                } else {
+                    paintComponent(g, node);
+                }
+            });
+            g.font = `10px ${UI_FONT}`;
+            circuit.nets.forEach(net => {
+                if (net.label) {
+                    g.fillStyle = net.wire === hoveredWire ? COLOR.blue : COLOR.muted;
+                    g.fillText(net.wire, net.label[0], net.label[1]);
+                }
+            });
+        }
+
+        function wrapText(g, text, x, y, width) {
+            let row = "";
+            let rowY = y;
+            text.split(" ").forEach(word => {
+                if (row && g.measureText(row + " " + word).width > width) {
+                    g.fillText(row, x, rowY);
+                    rowY += 18;
+                    row = "";
+                }
+                row += (row ? " " : "") + word;
+            });
+            g.fillText(row, x, rowY);
+        }
+
+        const view = createCanvasView($("sch-view"), (g, area) => {
+            if (!circuit) {
+                g.font = `13px ${UI_FONT}`;
+                g.fillStyle = COLOR.muted;
+                if (message) wrapText(g, message, area.x + 16, area.y + 28, Math.max(200, area.width - 32));
+                return;
+            }
+            g.scale(scale, scale);
+            paintCircuit(g);
+        });
+
+        function updateSize() {
+            view.setContentSize(circuit ? Math.ceil(circuit.width * scale) : 0, circuit ? Math.ceil(circuit.height * scale) : 0);
+            view.redraw();
+        }
+
+        function applyFit() {
+            if (!circuit || !view.host.clientWidth || !view.host.clientHeight) return;
+            scale = Math.max(floor, Math.min(1.2, (view.host.clientWidth - 2) / circuit.width, (view.host.clientHeight - 2) / circuit.height));
+            updateSize();
+        }
+        view.onResize = () => { if (fitting) applyFit(); };
+
+        function setScale(value) {
+            fitting = false;
+            floor = AUTO_FLOOR;
+            scale = Math.max(0.05, Math.min(3, value));
+            updateSize();
+        }
+
+        function readoutText() {
+            if (!circuit) return " ";
+            if (hoveredNode) return `${hoveredNode.id}: ${hoveredNode.detail}`;
+            if (hoveredWire) {
+                const info = circuit.wires[hoveredWire] || { feeds: [] };
+                const value = valueOf(hoveredWire);
+                let text = hoveredWire + (value !== undefined ? ` = ${value.toUpperCase()}` : "");
+                if (info.fault) text += ` (${info.fault})`;
+                text += `. ${info.driver ? "Driven by " + info.driver : "Input"}`;
+                if (info.feeds.length) text += `, feeds ${info.feeds.join(", ")}`;
+                return text;
+            }
+            const unused = !circuit.unusedWires ? "" : ` ${circuit.unusedWires} unconnected wire${circuit.unusedWires === 1 ? " is" : "s are"} not shown.`;
+            return (values ? "" : "Run a simulation to colour wires by value. ") + "Hover over a wire or gate for details." + unused;
+        }
+
+        function publish() {
+            $("sch-readout").textContent = readoutText();
+        }
+
+        function segmentDistance(s, x, y) {
+            const dx = s[2] - s[0], dy = s[3] - s[1];
+            const length = dx * dx + dy * dy;
+            const t = length ? Math.max(0, Math.min(1, ((x - s[0]) * dx + (y - s[1]) * dy) / length)) : 0;
+            return Math.hypot(x - s[0] - t * dx, y - s[1] - t * dy);
+        }
+
+        view.host.addEventListener("pointermove", event => {
+            if (!circuit) return;
+            const point = view.point(event);
+            const x = point.x / scale, y = point.y / scale;
+            let node = circuit.nodes.find(n => x >= n.x && x <= n.x + n.width && Math.abs(y - n.y) <= n.height / 2) || null;
+            let wire = null;
+            if (node && ["INPUT", "OUTPUT", "BUS"].includes(node.kind)) {
+                wire = node.id;
+                node = null;
+            } else if (!node) {
+                for (const net of circuit.nets) {
+                    if (net.segments.some(s => segmentDistance(s, x, y) <= HIT / scale)) wire = net.wire;
+                }
+            }
+            if (node !== hoveredNode || wire !== hoveredWire) {
+                hoveredNode = node;
+                hoveredWire = wire;
+                publish();
+                view.redraw();
+            }
+        });
+        view.host.addEventListener("pointerleave", () => {
+            hoveredNode = null;
+            hoveredWire = null;
+            publish();
+            view.redraw();
+        });
+        view.host.addEventListener("wheel", event => {
+            if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                setScale(scale * (event.deltaY < 0 ? 1.15 : 1 / 1.15));
+            }
+        }, { passive: false });
+
+        $("sch-in").addEventListener("click", () => setScale(scale * 1.25));
+        $("sch-out").addEventListener("click", () => setScale(scale / 1.25));
+        $("sch-fit").addEventListener("click", () => { fitting = true; floor = 0.05; applyFit(); });
+        $("sch-image").addEventListener("click", () => {
+            if (!circuit) {
+                setActivity("Fix the netlist before saving the schematic", "bad");
+                return;
+            }
+            const savedWire = hoveredWire, savedNode = hoveredNode;
+            hoveredWire = null;
+            hoveredNode = null;
+            canvasToPng(circuit.width, circuit.height, paintCircuit, "schematic.png");
+            hoveredWire = savedWire;
+            hoveredNode = savedNode;
+        });
+        publish();
+
+        return {
+            setCircuit(layout) {
+                const first = !circuit;
+                circuit = layout;
+                message = null;
+                hoveredNode = null;
+                hoveredWire = null;
+                if (first || fitting) {
+                    fitting = true;
+                    applyFit();
+                }
+                updateSize();
+                publish();
+            },
+            showMessage(text) {
+                circuit = null;
+                message = text;
+                hoveredNode = null;
+                hoveredWire = null;
+                updateSize();
+                publish();
+            },
+            setValues(source) {
+                values = source;
+                publish();
+                view.redraw();
+            },
+            redraw: () => view.redraw()
+        };
+    })();
+
+    // ------------------------------------------------------------------
+    // Application
+    // ------------------------------------------------------------------
+
+    let fileName = null;
+    let dirty = false;
+    let simulatedNetlist = null;
+    let sessionActive = false;
+    let stepFinished = false;
+    let busy = false;
+    let lastTable = null;
+    let schematicTimer = null;
+
+    const editor = createEditor($("main-editor"), {
+        label: "Netlist",
+        lineNumbers: true,
+        onChange: editorChanged,
+        onCaret: (ln, col) => { $("caret").textContent = `Ln ${ln}, Col ${col}`; }
+    });
+    const comparison = createEditor($("compare-editor"), { label: "Comparison netlist", lineNumbers: false });
+
+    function schematicVisible() {
+        return !document.querySelector('[data-panel="schematic"]').hidden;
+    }
+
+    function setDirty(value) {
+        dirty = value;
+        const name = fileName || "Untitled netlist";
+        $("file-name").textContent = dirty ? name + " (unsaved)" : name;
+        $("file-name").title = name;
+    }
+
+    function updateButtons() {
+        const ready = !busy;
+        ["run", "reset", "detect", "truth", "timing", "validate", "equivalent"].forEach(id => { $(id).disabled = !ready; });
+        $("step").disabled = !ready || stepFinished;
+        $("csv").disabled = !ready || !lastTable;
+    }
+
+    function setStatus() {
+        if (!sessionActive) $("debug-status").textContent = "No simulation loaded";
+    }
+
+    function editorChanged() {
+        setDirty(true);
+        // A step-through session belongs to the netlist it started from, so an edit ends it.
+        sessionActive = false;
+        stepFinished = false;
+        setStatus();
+        updateButtons();
+        clearTimeout(schematicTimer);
+        schematicTimer = setTimeout(refreshSchematic, 400);
+    }
+
+    function log(text) {
+        const console = $("log");
+        const placeholder = console.querySelector(".placeholder");
+        if (placeholder) placeholder.remove();
+        text.split("\n").forEach(row => {
+            const span = document.createElement("span");
+            const colon = row.indexOf(":");
+            if (row.startsWith("[!]")) {
+                span.className = "l-error";
+                span.textContent = row;
+            } else if (row.startsWith("[+]")) {
+                span.className = "l-mark";
+                span.textContent = row;
+            } else if (row.startsWith("====")) {
+                span.className = "l-rule";
+                span.textContent = row;
+            } else if (colon > 0 && colon < 25) {
+                const label = document.createElement("span");
+                label.className = "l-label";
+                label.textContent = row.slice(0, colon + 1);
+                span.append(label, row.slice(colon + 1));
+            } else {
+                span.textContent = row;
+            }
+            console.append(span, "\n");
+        });
+        console.scrollTop = console.scrollHeight;
+    }
+
+    function clearLog() {
+        $("log").replaceChildren();
+    }
+
+    function showErrorLine(message) {
+        const match = /\bline (\d+)\b/i.exec(message || "");
+        if (match) editor.showError(Number(match[1]) - 1);
+    }
+
+    function needEngine() {
+        if (engineReady()) return true;
+        setActivity("The simulator engine is not loaded. See the note at the top of the page.", "bad");
+        return false;
+    }
+
+    /** Runs work after the browser has painted the busy state, since the engine runs on the page's thread. */
+    function runTask(activity, work) {
+        if (!needEngine()) return;
+        busy = true;
+        updateButtons();
+        setActivity(activity);
+        requestAnimationFrame(() => setTimeout(() => {
             try {
-                operations[button.dataset.operation]();
+                work();
+            } finally {
+                busy = false;
+                updateButtons();
+            }
+        }));
+    }
+
+    // --- Run, step, reset ---
+
+    function runSimulationClicked() {
+        const netlist = editor.text;
+        clearLog();
+        log("===============================================\n[+] INITIALIZING SIMULATION\n===============================================");
+        runTask("Simulating...", () => {
+            try {
+                const result = callEngine("runSimulation", netlist);
+                waveform.load(result.waveform);
+                simulatedNetlist = netlist;
+                scrubTo(waveform.maxTime());
+                const row = (label, value) => label.padEnd(25) + " " + value;
+                log("\n===============================================\n[+] SIMULATION TELEMETRY REPORT\n===============================================");
+                log(row("Circuit Topology:", (result.wireCount + result.componentCount) + " nodes"));
+                log(row("Simulated Time:", result.simulatedTime + " ns"));
+                log(row("Critical Path Delay:", result.criticalPathDelay + " ns"));
+                log(row("Total Events Processed:", result.eventsProcessed + " events"));
+                log(row("Peak Queue Depth:", result.peakQueueDepth));
+                log(row("CPU Compute Time:", result.computeTimeMillis + " ms"));
+                log("===============================================");
+                if (result.eventsProcessed === 0) {
+                    log("[!] NO SIGNAL ACTIVITY: this netlist has no STIMULUS lines or CLOCK,\n    so its inputs are never driven and every wire stays X.");
+                    setActivity("Nothing changed. Add STIMULUS lines or a CLOCK.", "warn");
+                } else {
+                    setActivity("Simulation finished", "good");
+                }
             } catch (error) {
-                line(error.message, "bad");
+                log("\n[!] SIMULATION FAILED: " + error.message);
+                setActivity("Simulation failed. See the telemetry log.", "bad");
+                showErrorLine(error.message);
+            }
+        });
+    }
+
+    function showDebugState(result) {
+        $("debug-status").textContent = `Time: ${result.time}ns | Pending: ${result.pending}`;
+        waveform.load(result.waveform);
+        simulatedNetlist = editor.text;
+        scrubTo(result.time);
+    }
+
+    function startSession() {
+        const result = callEngine("debugStart", editor.text);
+        sessionActive = true;
+        stepFinished = false;
+        return result;
+    }
+
+    function stepClicked() {
+        if (!needEngine()) return;
+        try {
+            if (!sessionActive) {
+                startSession();
+                log("Step session started.");
+            }
+            const result = callEngine("debugStep");
+            if (result.stepped) {
+                setActivity("Stepped one event");
+            } else {
+                log("Simulation complete.");
+                stepFinished = true;
+                setActivity("Simulation complete. Press Reset to step again.", "good");
+            }
+            showDebugState(result);
+        } catch (error) {
+            log("[!] STEP FAILED: " + error.message);
+            setActivity("Step failed. See the telemetry log.", "bad");
+            showErrorLine(error.message);
+        }
+        updateButtons();
+    }
+
+    function resetClicked() {
+        if (!needEngine()) return;
+        try {
+            showDebugState(startSession());
+            log("Simulation reset.");
+            setActivity("Simulation reset");
+        } catch (error) {
+            log("[!] RESET FAILED: " + error.message);
+            setActivity("Reset failed. See the telemetry log.", "bad");
+            showErrorLine(error.message);
+        }
+        updateButtons();
+    }
+
+    // --- Schematic values ---
+
+    function setScrubberEnabled(enabled) {
+        ["sch-prev", "sch-next", "sch-time"].forEach(id => { $(id).disabled = !enabled; });
+        $("sch-time").title = enabled ? "Choose the time whose wire values are shown" : "Run a simulation to see wire values";
+    }
+
+    function showValues(time) {
+        $("sch-time-label").textContent = time + " ns";
+        schematic.setValues(wire => waveform.valueAt(wire, time));
+    }
+
+    function scrubTo(time) {
+        $("sch-time").max = waveform.maxTime();
+        $("sch-time").value = time;
+        refreshSchematic();
+    }
+
+    function refreshSchematic() {
+        if (!schematicVisible() || !engineReady()) {
+            if (schematicVisible()) schematic.showMessage("The simulator engine is not loaded, so the schematic cannot be drawn.");
+            return;
+        }
+        const netlist = editor.text;
+        if (!netlist.trim()) {
+            schematic.showMessage("The netlist is empty. Add wires and gates to draw a schematic.");
+        } else {
+            try {
+                schematic.setCircuit(callEngine("schematicLayout", netlist));
+            } catch (error) {
+                schematic.showMessage("Fix the netlist to draw its schematic. " + error.message);
+            }
+        }
+        const current = netlist === simulatedNetlist && waveform.hasSignals();
+        setScrubberEnabled(current);
+        if (current) {
+            $("sch-time").max = waveform.maxTime();
+            showValues(Number($("sch-time").value));
+        } else {
+            schematic.setValues(null);
+            $("sch-time-label").textContent = "";
+        }
+    }
+
+    $("sch-time").addEventListener("input", event => showValues(Number(event.target.value)));
+    $("sch-prev").addEventListener("click", () => scrubTo(waveform.previousEdge(Number($("sch-time").value))));
+    $("sch-next").addEventListener("click", () => scrubTo(waveform.nextEdge(Number($("sch-time").value))));
+
+    // --- Analysis ---
+
+    const names = text => text.split(",").map(name => name.trim()).filter(name => name);
+
+    function showText(text, kind) {
+        const box = $("result-text");
+        box.hidden = false;
+        box.className = "result-text" + (kind ? " c-" + kind : "");
+        box.textContent = text;
+        $("result-table").hidden = true;
+        $("truth-summary").hidden = true;
+        lastTable = null;
+        updateButtons();
+    }
+
+    function showFailure(prefix, error) {
+        showText(prefix + ": " + error.message, "bad");
+        setActivity(prefix, "bad");
+        showErrorLine(error.message);
+    }
+
+    /** Applies the desktop app's rule: wires that are all missing belong to an earlier netlist. */
+    function chooseWires(netlist) {
+        const inputs = names($("inputs").value);
+        const outputs = names($("outputs").value);
+        const ports = callEngine("detectWires", netlist);
+        const typed = [...new Set([...inputs, ...outputs])];
+        const missing = typed.filter(name => !ports.wires.includes(name));
+        if (!inputs.length || !outputs.length || missing.length === typed.length) {
+            if (!ports.inputs.length || !ports.outputs.length) {
+                throw new Error("Could not detect input and output wires. Enter them above. Wires in this netlist: " + ports.wires.join(", "));
+            }
+            return { inputs: ports.inputs, outputs: ports.outputs,
+                note: typed.length ? "The wires above were not in this netlist, so they were detected again." : "Wires were detected from the netlist." };
+        }
+        if (missing.length) {
+            throw new Error("Not in this netlist: " + missing.join(", ") + ". Wires in this netlist: " + ports.wires.join(", "));
+        }
+        const undriven = ports.inputs.filter(name => !inputs.includes(name));
+        return { inputs, outputs, note: undriven.length
+            ? `Not listed as inputs, so left undriven: ${undriven.join(", ")}. Outputs that depend on them can show X.` : "" };
+    }
+
+    function setWireFields(wires) {
+        $("inputs").value = wires.inputs.join(",");
+        $("outputs").value = wires.outputs.join(",");
+    }
+
+    function showTruthTable(table, note) {
+        const element = (tag, text, className) => {
+            const node = document.createElement(tag);
+            node.textContent = text;
+            if (className) node.className = className;
+            return node;
+        };
+        const grid = document.createElement("table");
+        const heading = document.createElement("tr");
+        heading.append(element("th", "Row"));
+        [...table.inputs, ...table.outputs].forEach(name => heading.append(element("th", name)));
+        grid.append(heading);
+        const stateClass = text => text === "1" ? "high" : text === "0" ? "" : "other";
+        table.rows.forEach((row, index) => {
+            const cells = document.createElement("tr");
+            cells.append(element("td", index, "row-number"));
+            row.inputs.forEach(text => cells.append(element("td", text, stateClass(text))));
+            row.outputs.forEach(text => cells.append(element("td", text, ("output " + stateClass(text)).trim())));
+            grid.append(cells);
+        });
+        $("result-table").replaceChildren(grid);
+        $("result-text").hidden = true;
+        $("result-table").hidden = false;
+        $("truth-summary").hidden = false;
+        $("truth-summary").textContent = `${table.rows.length} rows. Shaded columns are outputs. ${note}`.trim();
+        lastTable = table;
+        updateButtons();
+    }
+
+    $("detect").addEventListener("click", () => {
+        const netlist = editor.text;
+        runTask("Detecting wires...", () => {
+            try {
+                const ports = callEngine("detectWires", netlist);
+                if (!ports.inputs.length && !ports.outputs.length) {
+                    showText("No input or output wires were found in this netlist.");
+                } else {
+                    setWireFields(ports);
+                    showText(`Inputs: ${ports.inputs.join(", ")}\nOutputs: ${ports.outputs.join(", ")}`);
+                }
+                setActivity("Wires detected", "good");
+            } catch (error) {
+                showFailure("Wire detection failed", error);
             }
         });
     });
+    $("truth").addEventListener("click", () => {
+        const netlist = editor.text;
+        runTask("Generating truth table...", () => {
+            try {
+                const wires = chooseWires(netlist);
+                const table = callEngine("generateTruthTable", netlist, wires.inputs.join(","), wires.outputs.join(","));
+                setWireFields(wires);
+                showTruthTable(table, wires.note);
+                setActivity("Truth table generated", "good");
+            } catch (error) {
+                showFailure("Truth-table generation failed", error);
+            }
+        });
+    });
+    $("timing").addEventListener("click", () => {
+        const netlist = editor.text;
+        runTask("Analyzing timing...", () => {
+            try {
+                const result = callEngine("analyzeCircuit", netlist);
+                const frequency = result.criticalPathDelay === 0 ? "not applicable (no gate delay on any path)"
+                    : result.maxClockFrequencyMHz.toFixed(2) + " MHz";
+                showText(`Critical path delay: ${result.criticalPathDelay} ns\nMaximum clock frequency: ${frequency}`);
+                setActivity("Timing analysis finished", "good");
+            } catch (error) {
+                showFailure("Analysis failed", error);
+            }
+        });
+    });
+    $("validate").addEventListener("click", () => {
+        const netlist = editor.text;
+        runTask("Validating...", () => {
+            try {
+                const result = callEngine("validateCircuit", netlist);
+                showText(result.message, result.valid ? "good" : "bad");
+                setActivity(result.message, result.valid ? "good" : "bad");
+            } catch (error) {
+                showFailure("Validation failed", error);
+            }
+        });
+    });
+    $("equivalent").addEventListener("click", () => {
+        const netlist = editor.text;
+        const other = comparison.text;
+        runTask("Checking equivalence...", () => {
+            try {
+                const wires = chooseWires(netlist);
+                const result = callEngine("checkEquivalent", netlist, other, wires.inputs.join(","), wires.outputs.join(","));
+                setWireFields(wires);
+                if (result.equivalent) {
+                    showText("Equivalent for all input combinations.", "good");
+                    setActivity("Circuits are equivalent", "good");
+                } else {
+                    const pair = (list, states) => list.map((name, index) => `${name}=${states[index]}`).join(", ");
+                    showText(`Not equivalent.\nCounterexample row: ${result.counterexampleRow}\nInputs: ${pair(wires.inputs, result.inputs)}`
+                        + `\nCurrent outputs: ${pair(wires.outputs, result.firstOutputs)}\nComparison outputs: ${pair(wires.outputs, result.secondOutputs)}`, "bad");
+                    setActivity("Circuits differ", "bad");
+                }
+            } catch (error) {
+                showFailure("Equivalence check failed", error);
+            }
+        });
+    });
+    $("csv").addEventListener("click", () => {
+        if (!lastTable) return;
+        const rows = [[...lastTable.inputs, ...lastTable.outputs].join(",")];
+        lastTable.rows.forEach(row => rows.push([...row.inputs, ...row.outputs].join(",")));
+        download("truth-table.csv", rows.join("\n") + "\n", "text/csv");
+        setActivity("Saved truth-table.csv", "good");
+    });
+
+    // --- Files and examples ---
+
+    function loadNetlist(text, name) {
+        fileName = name;
+        editor.set(text);
+        sessionActive = false;
+        stepFinished = false;
+        setDirty(false);
+        setStatus();
+        updateButtons();
+        if (engineReady()) {
+            try {
+                const ports = callEngine("detectWires", text);
+                if (ports.inputs.length || ports.outputs.length) setWireFields(ports);
+            } catch (error) {
+                // Running or analyzing this netlist reports the same error with its line number.
+            }
+        }
+        refreshSchematic();
+    }
+
+    const confirmDiscard = () => !dirty || window.confirm("The netlist has unsaved changes. Discard them?");
+
+    $("open").addEventListener("click", () => {
+        if (confirmDiscard()) $("file").click();
+    });
+    $("file").addEventListener("change", event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        file.text().then(text => {
+            loadNetlist(text.replace(/\r\n?/g, "\n"), file.name);
+            log("Loaded file: " + file.name);
+            setActivity("Loaded " + file.name);
+        }, error => setActivity("Could not read " + file.name + ": " + error.message, "bad"));
+        event.target.value = "";
+    });
+    function saveClicked() {
+        const name = fileName || "circuit.netlist";
+        download(name, editor.text);
+        fileName = name;
+        setDirty(false);
+        log("Saved: " + name);
+        setActivity("Saved " + name + " to your downloads");
+    }
+    $("save").addEventListener("click", saveClicked);
+    Object.keys(EXAMPLES).forEach(name => {
+        const option = document.createElement("option");
+        option.textContent = name;
+        option.value = name;
+        $("examples").append(option);
+    });
+    $("examples").addEventListener("change", event => {
+        const name = event.target.value;
+        event.target.value = "";
+        if (name && confirmDiscard()) {
+            loadNetlist(EXAMPLES[name], null);
+            setActivity("Loaded the " + name + " example");
+        }
+    });
+
+    // --- Window behaviour ---
+
+    document.querySelectorAll(".tabs button").forEach(tab => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".tabs button").forEach(other => other.setAttribute("aria-selected", String(other === tab)));
+            document.querySelectorAll(".panel").forEach(panel => { panel.hidden = panel.dataset.panel !== tab.dataset.tab; });
+            if (tab.dataset.tab === "schematic") refreshSchematic();
+        });
+    });
+
+    $("divider").addEventListener("pointerdown", event => {
+        const divider = event.target;
+        divider.setPointerCapture(event.pointerId);
+        const move = moved => { $("left").style.width = Math.max(240, Math.min(window.innerWidth - 320, moved.clientX)) + "px"; };
+        const stop = () => {
+            divider.removeEventListener("pointermove", move);
+            divider.removeEventListener("pointerup", stop);
+        };
+        divider.addEventListener("pointermove", move);
+        divider.addEventListener("pointerup", stop);
+    });
+
+    document.addEventListener("keydown", event => {
+        const command = event.ctrlKey || event.metaKey;
+        if (command && event.key.toLowerCase() === "s") {
+            event.preventDefault();
+            saveClicked();
+        } else if (command && event.key.toLowerCase() === "o") {
+            event.preventDefault();
+            $("open").click();
+        } else if (command && event.key === "Enter") {
+            event.preventDefault();
+            if (!$("run").disabled) $("run").click();
+        } else if (event.key === "F10") {
+            event.preventDefault();
+            if (!$("step").disabled) $("step").click();
+        }
+    });
+    window.addEventListener("beforeunload", event => {
+        if (dirty) event.preventDefault();
+    });
+
+    $("run").addEventListener("click", runSimulationClicked);
+    $("step").addEventListener("click", stepClicked);
+    $("reset").addEventListener("click", resetClicked);
+
+    $("notice").hidden = engineReady();
+    editor.set(EXAMPLES["Full adder"]);
+    comparison.set("# Paste a second netlist here for equivalence checking\n");
+    setScrubberEnabled(false);
+    setDirty(false);
+    updateButtons();
+})();
 </script>
 </body>
 </html>

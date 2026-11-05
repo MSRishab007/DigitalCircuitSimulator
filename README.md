@@ -148,26 +148,29 @@ generateTruthTable(netlist, "A,B", "SUM")
 checkEquivalent(firstNetlist, secondNetlist, "A,B", "SUM")
 ```
 
-## Browser demo
+## Browser version
 
-The browser engine is built on your computer and is not stored in Git. From the
-repository folder, build it and serve the folder over HTTP:
+`index.html` has the same tools as the desktop dashboard. The engine it runs,
+`target/generated/js/simulator.js`, is built on your computer and is not stored
+in Git. To run it locally, from the repository folder:
 
 ```powershell
-mvn package
+mvn clean package
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000/`. The page runs simulation, validation, timing
-analysis, truth tables, and equivalence checks, and draws the waveform.
-
-If the page says the engine is not loaded, `target/generated/js/simulator.js`
-is missing, so run `mvn package` and read any error it prints. To test the built
-engine without a browser, run:
+Then open `http://localhost:8000/`. To test the built engine without a browser:
 
 ```powershell
 node scripts/browser-smoke-test.js
 ```
+
+### Hosting on GitHub Pages
+
+`.github/workflows/pages.yml` builds, tests and publishes the page on every push
+to `main`. To turn it on once, go to the repository's **Settings > Pages** and set
+**Source** to **GitHub Actions**. The page is then published at
+`https://<owner>.github.io/<repository>/`.
 
 ## Outputs
 

@@ -1,5 +1,7 @@
 package simulator.gui;
 
+import simulator.schematic.SchematicLayout;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -374,7 +376,7 @@ final class SchematicPanel extends JPanel implements Scrollable {
         for (SchematicLayout.Segment s : net.segments) {
             g.drawLine(s.x1, s.y1, s.x2, s.y2);
         }
-        for (Point junction : net.junctions) {
+        for (SchematicLayout.Point junction : net.junctions) {
             g.fill(new Ellipse2D.Float(junction.x - 3f, junction.y - 3f, 6f, 6f));
         }
     }

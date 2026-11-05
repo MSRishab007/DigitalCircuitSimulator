@@ -13,6 +13,7 @@ import simulator.io.VcdLogger;
 import simulator.parser.NetlistParser;
 import simulator.parser.TopologyValidator;
 import simulator.parser.SimulationRunner;
+import simulator.schematic.SchematicLayout;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

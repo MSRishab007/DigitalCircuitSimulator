@@ -42,6 +42,15 @@ const different = call("checkEquivalent", netlist, other, "A,B", "OUT");
 assert.strictEqual(different.equivalent, false);
 assert.strictEqual(different.counterexampleRow, 1);
 
+const schematic = call("schematicLayout", netlist);
+assert.ok(schematic.nodes.some(node => node.kind === "AND"));
+assert.ok(schematic.nets.length > 0);
+
+const session = call("debugStart", netlist);
+assert.strictEqual(session.time, 0);
+const step = call("debugStep");
+assert.strictEqual(step.stepped, true);
+
 const failure = JSON.parse(engine.runSimulation("WIRE A\nFOO x 1 A\n"));
 assert.strictEqual(failure.success, false);
 assert.ok(failure.error.includes("line 2"), failure.error);

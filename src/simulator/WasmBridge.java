@@ -2,9 +2,17 @@ package simulator;
 
 import org.teavm.jso.JSExport;
 import simulator.application.SimulationApplicationService;
+import simulator.components.Clock;
+import simulator.core.DigitalComponent;
 import simulator.engine.CircuitEquivalenceChecker;
+import simulator.engine.SimulationContext;
+import simulator.engine.SimulationDebugger;
 import simulator.engine.TimingAnalysisResult;
 import simulator.engine.TruthTable;
+import simulator.io.VcdLogger;
+import simulator.parser.NetlistParser;
+import simulator.parser.TopologyValidator;
+import simulator.schematic.SchematicLayout;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,6 +53,129 @@ public class WasmBridge {
             } catch (Exception e) {
                 return errorJson(e);
             }
+        }
+
+    private static SimulationDebugger debugger;
+    private static VcdLogger debugLogger;
+
+    /** Starts a step-through session at time 0, replacing any earlier session. */
+    @JSExport
+    public static String debugStart(String netlist) {
+            try {
+                SimulationContext context = new SimulationContext();
+                NetlistParser parser = new NetlistParser(context);
+                parser.parseString(netlist);
+                if (!new TopologyValidator().validateNoCombinationalLoops(parser.getComponents())) {
+                    throw new IllegalStateException("Unclocked combinational loop detected");
+                }
+                VcdLogger logger = new VcdLogger(null, context);
+                parser.getAllWires().forEach(logger::monitorWire);
+                for (DigitalComponent component : parser.getComponents()) {
+                    if (component instanceof Clock) {
+                        ((Clock) component).generateClockPulses();
+                    }
+                }
+                debugLogger = logger;
+                debugger = new SimulationDebugger(context);
+                return debugJson(true);
+            } catch (Exception e) {
+                debugger = null;
+                debugLogger = null;
+                return errorJson(e);
+            }
+        }
+
+    /** Processes one event. The stepped field is false once nothing is left to process. */
+    @JSExport
+    public static String debugStep() {
+            try {
+                if (debugger == null) {
+                    throw new IllegalStateException("No step session is running");
+                }
+                return debugJson(debugger.step());
+            } catch (Exception e) {
+                return errorJson(e);
+            }
+        }
+
+    private static String debugJson(boolean stepped) {
+            return "{\"success\":true,\"stepped\":" + stepped
+                    + ",\"time\":" + debugger.getCurrentTime()
+                    + ",\"pending\":" + debugger.getPendingEventCount()
+                    + ",\"waveform\":\"" + escapeJson(debugLogger.toVcd()) + "\"}";
+        }
+
+    @JSExport
+    public static String schematicLayout(String netlist) {
+            try {
+                NetlistParser parser = new NetlistParser(new SimulationContext());
+                parser.parseString(netlist);
+                return schematicJson(SchematicLayout.build(parser));
+            } catch (Exception e) {
+                return errorJson(e);
+            }
+        }
+
+    private static String schematicJson(SchematicLayout layout) {
+            StringBuilder json = new StringBuilder("{\"success\":true,\"width\":").append(layout.getWidth())
+                    .append(",\"height\":").append(layout.getHeight())
+                    .append(",\"unusedWires\":").append(layout.getUnusedWires())
+                    .append(",\"nodes\":[");
+            String separator = "";
+            for (SchematicLayout.Node node : layout.getNodes()) {
+                json.append(separator).append("{\"kind\":\"").append(node.kind.name())
+                        .append("\",\"id\":\"").append(escapeJson(node.id))
+                        .append("\",\"detail\":\"").append(escapeJson(node.detail))
+                        .append("\",\"x\":").append(node.x).append(",\"y\":").append(node.y)
+                        .append(",\"width\":").append(node.width).append(",\"height\":").append(node.height)
+                        .append(",\"inputs\":[");
+                for (int pin = 0; pin < node.inputCount; pin++) {
+                    json.append(pin == 0 ? "" : ",").append(node.inputY(pin));
+                }
+                json.append("]}");
+                separator = ",";
+            }
+            json.append("],\"nets\":[");
+            separator = "";
+            java.util.Set<String> wires = new java.util.LinkedHashSet<>();
+            for (SchematicLayout.Net net : layout.getNets()) {
+                wires.add(net.wire);
+                json.append(separator).append("{\"wire\":\"").append(escapeJson(net.wire)).append("\",\"segments\":[");
+                String inner = "";
+                for (SchematicLayout.Segment s : net.segments) {
+                    json.append(inner).append('[').append(s.x1).append(',').append(s.y1).append(',')
+                            .append(s.x2).append(',').append(s.y2).append(']');
+                    inner = ",";
+                }
+                json.append("],\"junctions\":[");
+                inner = "";
+                for (SchematicLayout.Point p : net.junctions) {
+                    json.append(inner).append('[').append(p.x).append(',').append(p.y).append(']');
+                    inner = ",";
+                }
+                json.append("],\"label\":");
+                if (net.labelAt == null) {
+                    json.append("null");
+                } else {
+                    json.append('[').append(net.labelAt.x).append(',').append(net.labelAt.y).append(']');
+                }
+                json.append('}');
+                separator = ",";
+            }
+            json.append("],\"wires\":{");
+            separator = "";
+            for (String wire : wires) {
+                json.append(separator).append('"').append(escapeJson(wire)).append("\":{\"driver\":")
+                        .append(jsonOrNull(layout.getDriver(wire))).append(",\"fault\":")
+                        .append(jsonOrNull(layout.getFault(wire))).append(",\"feeds\":")
+                        .append(listJson(layout.getFeeds(wire))).append('}');
+                separator = ",";
+            }
+            return json.append("}}").toString();
+        }
+
+    private static String jsonOrNull(String value) {
+            return value == null ? "null" : '"' + escapeJson(value) + '"';
         }
 
     @JSExport
