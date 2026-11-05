@@ -45,33 +45,26 @@ public final class SimulationContext {
     }
 
     public void runSimulation() {
-        while (eventEngine.stepSimulation()) {
-            if (!eventEngine.hasPendingEvents()
-                    || eventEngine.getNextEventTime() > eventEngine.getCurrentTime()) {
-                evaluateAssertions();
-            }
+        long start = System.currentTimeMillis();
+        while (stepSimulation()) {
         }
-        evaluateAssertions();
+        eventEngine.recordComputeTime(System.currentTimeMillis() - start);
     }
 
     public boolean stepSimulation() {
-        boolean stepped = eventEngine.stepSimulation();
-        if (stepped && (!eventEngine.hasPendingEvents()
-                || eventEngine.getNextEventTime() > eventEngine.getCurrentTime())) {
-            evaluateAssertions();
-        }
-        return stepped;
-    }
-
-    private void evaluateAssertions() {
+        long nextEventTime = eventEngine.getNextEventTime();
         for (SimulationAssertion assertion : assertions) {
-            assertion.evaluate(eventEngine.getCurrentTime());
+            if (assertion.getTime() < nextEventTime
+                    && assertion.getTime() <= eventEngine.getMaxSimulationTime()) {
+                assertion.check();
+            }
         }
+        return eventEngine.stepSimulation();
     }
 
     public void verifyAssertionsCompleted() {
         for (SimulationAssertion assertion : assertions) {
-            assertion.verifyCompleted(eventEngine.getCurrentTime());
+            assertion.verifyCompleted(eventEngine.getMaxSimulationTime());
         }
     }
 }

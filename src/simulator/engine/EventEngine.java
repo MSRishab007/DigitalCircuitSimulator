@@ -94,4 +94,5 @@ public class EventEngine {
     public long getTotalEventsProcessed() { return totalEventsProcessed; }
     public int getPeakQueueDepth() { return peakQueueDepth; }
     public long getComputeTimeMillis() { return computeTimeMillis; }
+    void recordComputeTime(long millis) { computeTimeMillis = millis; }
 }

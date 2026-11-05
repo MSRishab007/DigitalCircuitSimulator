@@ -1,5 +1,7 @@
 package simulator.parser;
 
+import simulator.components.BooleanExpression;
+import simulator.components.FunctionalBlock;
 import simulator.core.DigitalComponent;
 import simulator.core.Wire;
 import simulator.engine.SimulationContext;
@@ -12,6 +14,8 @@ import java.io.IOException;
 import java.util.*;
 
 public class NetlistParser {
+    private static final int MAX_MACRO_DEPTH = 32;
+
     private final SimulationContext simulationContext;
     private final Map<String, Wire> wires = new LinkedHashMap<>();
     private final List<DigitalComponent> components = new ArrayList<>();
@@ -54,6 +58,7 @@ private void parseReader(BufferedReader reader) throws IOException {
     components.clear();
     macros.clear();
     simulationContext.reset();
+    loadStandardLibrary();
     
     String line;
     int lineNumber = 0;
@@ -62,9 +67,10 @@ private void parseReader(BufferedReader reader) throws IOException {
     
     while ((line = reader.readLine()) != null) {
         lineNumber++;
-        line = line.trim();
+        int comment = line.indexOf('#');
+        line = (comment >= 0 ? line.substring(0, comment) : line).trim();
         
-        if (line.isEmpty() || line.startsWith("#")) continue;
+        if (line.isEmpty()) continue;
 
         String[] tokens = line.split("\\s+");
         String command = tokens[0].toUpperCase();
@@ -131,7 +137,7 @@ private void parseReader(BufferedReader reader) throws IOException {
                 simulationContext.getEventEngine().scheduleEvent(new simulator.engine.SignalEvent(time, target, state));
             }
             else if (macros.containsKey(command)) {
-                instantiateMacro(macros.get(command), tokens);
+                instantiateMacro(macros.get(command), tokens, "", new HashMap<>(), 0);
             } 
             else {
                 if (tokens.length < 2) {
@@ -151,35 +157,56 @@ private void parseReader(BufferedReader reader) throws IOException {
     // Flip-flops start in a known state, so their outputs must show it from the start.
     // Otherwise feedback circuits such as counters only ever see an unknown value.
     for (DigitalComponent component : components) {
-        if (component instanceof simulator.components.SequentialComponent) {
+        if (component instanceof simulator.components.SequentialComponent
+                || component instanceof simulator.components.FunctionalBlock) {
             component.evaluate();
         }
     }
 }
-    private void instantiateMacro(MacroDef macro, String[] args) {
+    private void loadStandardLibrary() {
+        MacroDef current = null;
+        for (String line : StandardLibrary.SOURCE.split("\n")) {
+            String[] tokens = line.split("\\s+");
+            if (tokens[0].equals("DEF")) {
+                current = new MacroDef();
+                current.name = tokens[1];
+                current.ports.addAll(Arrays.asList(tokens).subList(2, tokens.length));
+            } else if (tokens[0].equals("ENDDEF")) {
+                macros.put(current.name, current);
+            } else {
+                current.bodyLines.add(line);
+            }
+        }
+    }
+
+    private void instantiateMacro(MacroDef macro, String[] args, String idPrefix,
+                                  Map<String, String> outerWires, int depth) {
+        if (depth > MAX_MACRO_DEPTH) {
+            throw new IllegalArgumentException("Macro " + macro.name + " uses itself");
+        }
         if (args.length != macro.ports.size() + 2) {
             throw new IllegalArgumentException("Macro " + macro.name + " expects " +
                     macro.ports.size() + " ports");
         }
-        String instanceId = args[1]; // e.g., ha1
+        String instanceId = idPrefix + args[1];
         Map<String, String> wireMap = new HashMap<>();
-        
-        // Map macro variables to the actual main wires provided
+
         for (int i = 0; i < macro.ports.size(); i++) {
-            wireMap.put(macro.ports.get(i), args[i + 2]);
+            wireMap.put(macro.ports.get(i), outerWires.getOrDefault(args[i + 2], args[i + 2]));
         }
 
-        // Play back the macro lines
         for (String line : macro.bodyLines) {
             String[] tokens = line.split("\\s+");
-            if (tokens[0].toUpperCase().equals("WIRE")) {
-                // Create encapsulated local wires (e.g., ha1_Internal_OR)
+            String command = tokens[0].toUpperCase();
+            if (command.equals("WIRE")) {
                 String localWire = instanceId + "_" + tokens[1];
                 if (wires.containsKey(localWire)) {
                     throw new IllegalArgumentException("Duplicate macro wire: " + localWire);
                 }
                 wires.put(localWire, new Wire(localWire));
                 wireMap.put(tokens[1], localWire);
+            } else if (macros.containsKey(command)) {
+                instantiateMacro(macros.get(command), tokens, instanceId + "_", wireMap, depth + 1);
             } else {
                 instantiateGate(tokens, instanceId + "_", wireMap);
             }
@@ -187,6 +214,10 @@ private void parseReader(BufferedReader reader) throws IOException {
     }
 
     private void instantiateGate(String[] tokens, String idPrefix, Map<String, String> wireMap) {
+        if (tokens[0].equalsIgnoreCase("FUNC")) {
+            instantiateFunction(tokens, idPrefix, wireMap);
+            return;
+        }
         if (tokens.length < 4) {
             throw new IllegalArgumentException("Gate syntax: TYPE ID DELAY [INPUTS...] OUTPUT");
         }
@@ -211,6 +242,31 @@ private void parseReader(BufferedReader reader) throws IOException {
         for (int i = 3; i < tokens.length - 1; i++) {
             String rawIn = tokens[i];
             getWire(wireMap.getOrDefault(rawIn, rawIn)).addObserver(component.getInputPin(i - 3));
+        }
+    }
+
+    private void instantiateFunction(String[] tokens, String idPrefix, Map<String, String> wireMap) {
+        int equals = Arrays.asList(tokens).indexOf("=");
+        if (equals < 4 || equals == tokens.length - 1) {
+            throw new IllegalArgumentException("Function syntax: FUNC ID DELAY [INPUTS...] OUTPUT = EXPRESSION");
+        }
+        int delay = Integer.parseInt(tokens[2]);
+        if (delay < 0) {
+            throw new IllegalArgumentException("Propagation delay cannot be negative");
+        }
+        List<String> inputNames = Arrays.asList(tokens).subList(3, equals - 1);
+        String expressionText = String.join(" ", Arrays.asList(tokens).subList(equals + 1, tokens.length));
+        BooleanExpression expression = BooleanExpression.parse(expressionText, inputNames);
+
+        FunctionalBlock block = new FunctionalBlock(idPrefix + tokens[1], delay, inputNames.size(), expression);
+        block.setSimulationContext(simulationContext);
+        components.add(block);
+
+        String rawOut = tokens[equals - 1];
+        block.getOutputPin(0).connect(getWire(wireMap.getOrDefault(rawOut, rawOut)));
+        for (int i = 0; i < inputNames.size(); i++) {
+            String rawIn = inputNames.get(i);
+            getWire(wireMap.getOrDefault(rawIn, rawIn)).addObserver(block.getInputPin(i));
         }
     }
 

@@ -9,6 +9,7 @@ import simulator.core.SignalObserver;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class TopologyValidator {
@@ -57,5 +58,28 @@ public class TopologyValidator {
 
         recursionStack.remove(current);
         return false;
+    }
+
+    /** Returns a description of a wire that gates other than tri-state buffers share, or null when there is none. */
+    public String findDriverConflict(List<DigitalComponent> components) {
+        Map<simulator.core.Wire, List<DigitalComponent>> drivers = new java.util.LinkedHashMap<>();
+        for (DigitalComponent component : components) {
+            for (simulator.core.OutputPin pin : component.getOutputPins()) {
+                if (pin.getConnectedWire() != null) {
+                    drivers.computeIfAbsent(pin.getConnectedWire(), wire -> new java.util.ArrayList<>()).add(component);
+                }
+            }
+        }
+        for (Map.Entry<simulator.core.Wire, List<DigitalComponent>> entry : drivers.entrySet()) {
+            if (entry.getValue().size() > 1) {
+                for (DigitalComponent driver : entry.getValue()) {
+                    if (!(driver instanceof simulator.components.TriStateBuffer)) {
+                        return "Wire " + entry.getKey().getWireId() + " is driven by more than one component. "
+                                + "Only tri-state buffers can share a wire.";
+                    }
+                }
+            }
+        }
+        return null;
     }
 }

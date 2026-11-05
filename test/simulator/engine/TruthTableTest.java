@@ -74,13 +74,25 @@ class TruthTableTest {
     }
 
     @Test
-    void explainsWhyClockedCircuitsAreRejected() {
-        String netlist = "WIRE C\nWIRE D\nWIRE Q\nCLOCK clk 10 C\nDFF ff 1 D C Q\n";
+    void flipFlopCircuitsGiveAStateTable() {
+        String netlist = "WIRE C\nWIRE D\nWIRE Q\nWIRE N\nCLOCK clk 10 C\nDFF ff 1 D C Q\nNOT inv 1 Q D\nNOT out 1 Q N\n";
+
+        TruthTable table = new TruthTableGenerator().generate(netlist, List.of(), List.of("N"));
+
+        assertEquals(List.of("Q"), table.getInputs());
+        assertEquals(List.of("Q+", "N"), table.getOutputs());
+        assertEquals(List.of("1", "1"), table.getRows().get(0).getOutputStates());
+        assertEquals(List.of("0", "0"), table.getRows().get(1).getOutputStates());
+    }
+
+    @Test
+    void clockWireCannotBeATableInput() {
+        String netlist = "WIRE C\nWIRE D\nWIRE Q\nDFF ff 1 D C Q\n";
 
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
-                new TruthTableGenerator().generate(netlist, List.of("D"), List.of("Q")));
+                new TruthTableGenerator().generate(netlist, List.of("C", "D"), List.of()));
 
-        assertTrue(error.getMessage().contains("combinational"));
+        assertTrue(error.getMessage().contains("clock"));
     }
 
     @Test

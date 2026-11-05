@@ -1,6 +1,8 @@
 package simulator;
 
+import simulator.application.SelfCheck;
 import simulator.application.SimulationApplicationService;
+import simulator.application.UserGuide;
 import simulator.parser.SimulationFacade;
 import simulator.engine.CircuitPorts;
 import simulator.engine.TruthTable;
@@ -11,7 +13,7 @@ public class Main {
     private static final SimulationApplicationService SERVICE =
             new SimulationApplicationService();
     private static final java.util.Set<String> COMMANDS =
-            java.util.Set.of("simulate", "validate", "analyze", "truth-table", "equivalent");
+            java.util.Set.of("simulate", "validate", "analyze", "truth-table", "equivalent", "check", "guide", "help");
 
     public static void main(String[] args) {
         int status = run(args);
@@ -25,6 +27,9 @@ public class Main {
         if (args.length == 0) {
             printUsage();
             return 1;
+        }
+        if (args[0].equalsIgnoreCase("--help") || args[0].equals("-h")) {
+            args = new String[]{"help"};
         }
         boolean named = COMMANDS.contains(args[0].toLowerCase());
         String command = named ? args[0].toLowerCase() : "simulate";
@@ -41,6 +46,11 @@ public class Main {
                 case "validate" -> validate(rest[0]);
                 case "analyze" -> analyze(rest[0]);
                 case "truth-table" -> truthTable(rest);
+                case "check" -> {
+                    return selfCheck();
+                }
+                case "guide" -> System.out.print(UserGuide.text(UserGuide.Surface.COMMAND_LINE));
+                case "help" -> printUsage(System.out);
                 default -> {
                     return equivalent(rest);
                 }
@@ -59,6 +69,7 @@ public class Main {
         return switch (command) {
             case "simulate" -> count == 1 || count == 2;
             case "validate", "analyze" -> count == 1;
+            case "check", "guide", "help" -> count == 0;
             case "truth-table" -> count == 1 || count == 3;
             default -> count == 2 || count == 4;
         };
@@ -76,6 +87,7 @@ public class Main {
         var result = SERVICE.analyze(netlist);
         System.out.println("CRITICAL_PATH_DELAY_NS=" + result.getCriticalPathDelay());
         System.out.println("MAX_CLOCK_FREQUENCY_MHZ=" + result.getMaxClockFrequencyMHz());
+        System.out.println("RESOURCES=" + SERVICE.resources(netlist).describe());
     }
 
     private static void truthTable(String[] args) throws Exception {
@@ -108,7 +120,7 @@ public class Main {
             return List.of(names(args[firstWireArgument]), names(args[firstWireArgument + 1]));
         }
         CircuitPorts ports = SERVICE.detectPorts(netlist);
-        if (ports.getInputs().isEmpty() || ports.getOutputs().isEmpty()) {
+        if (!ports.isSequential() && (ports.getInputs().isEmpty() || ports.getOutputs().isEmpty())) {
             throw new IllegalArgumentException("Could not detect input and output wires. "
                     + "Name them on the command line. Wires in this netlist: "
                     + String.join(", ", ports.getWires()));
@@ -123,14 +135,34 @@ public class Main {
                 .toList();
     }
 
+    private static int selfCheck() {
+        List<SelfCheck.Result> results = new SelfCheck().run();
+        int passed = 0;
+        for (SelfCheck.Result result : results) {
+            System.out.println((result.passed ? "PASS  " : "FAIL  ") + result.name
+                    + (result.passed ? "" : ": " + result.detail));
+            passed += result.passed ? 1 : 0;
+        }
+        System.out.println();
+        System.out.println(passed + " of " + results.size() + " checks passed.");
+        return passed == results.size() ? 0 : 1;
+    }
+
     private static void printUsage() {
-        System.err.println("Usage:");
-        System.err.println("  java simulator.Main simulate <netlist> [output.vcd]");
-        System.err.println("  java simulator.Main validate <netlist>");
-        System.err.println("  java simulator.Main analyze <netlist>");
-        System.err.println("  java simulator.Main truth-table <netlist> [<inputs> <outputs>]");
-        System.err.println("  java simulator.Main equivalent <first> <second> [<inputs> <outputs>]");
-        System.err.println("  java simulator.Main <netlist> [output.vcd]");
-        System.err.println("Inputs and outputs are comma separated. Without them, wires are detected from the netlist.");
+        printUsage(System.err);
+    }
+
+    private static void printUsage(java.io.PrintStream out) {
+        out.println("Usage:");
+        out.println("  java simulator.Main simulate <netlist> [output.vcd]");
+        out.println("  java simulator.Main validate <netlist>");
+        out.println("  java simulator.Main analyze <netlist>");
+        out.println("  java simulator.Main truth-table <netlist> [<inputs> <outputs>]");
+        out.println("  java simulator.Main equivalent <first> <second> [<inputs> <outputs>]");
+        out.println("  java simulator.Main check");
+        out.println("  java simulator.Main guide");
+        out.println("  java simulator.Main help");
+        out.println("  java simulator.Main <netlist> [output.vcd]");
+        out.println("Inputs and outputs are comma separated. Without them, wires are detected from the netlist.");
     }
 }

@@ -10,6 +10,8 @@ import simulator.components.OrGate;
 import simulator.components.SequentialComponent;
 import simulator.components.TriStateBuffer;
 import simulator.components.XorGate;
+import simulator.components.XnorGate;
+import simulator.components.FunctionalBlock;
 import simulator.core.DigitalComponent;
 import simulator.core.InputPin;
 import simulator.core.OutputPin;
@@ -35,7 +37,7 @@ import java.util.Set;
  * Wires that loop back, such as flip-flop feedback, run along lanes underneath the circuit.
  */
 public final class SchematicLayout {
-    public enum Kind { INPUT, OUTPUT, AND, OR, NOT, NAND, NOR, XOR, BUFFER, DFF, CLOCK, BUS, OTHER, ROUTE }
+    public enum Kind { INPUT, OUTPUT, AND, OR, NOT, NAND, NOR, XOR, XNOR, FUNC, BUFFER, DFF, CLOCK, BUS, OTHER, ROUTE }
 
     private static final int MARGIN = 24;
     private static final int NODE_GAP = 22;
@@ -259,12 +261,17 @@ public final class SchematicLayout {
         Kind kind = kindOf(component);
         String delay = component instanceof LogicGate
                 ? ", delay " + ((LogicGate) component).getPropagationDelay() + " ns" : "";
-        String detail = kind == Kind.DFF ? "D flip-flop" : kind == Kind.CLOCK ? "Clock"
+        int height = Math.max(66, inputs * PIN_SPACING + 30);
+        String detail = kind == Kind.FUNC
+                ? "Function " + ((FunctionalBlock) component).getExpressionText() + delay
+                : kind == Kind.DFF ? "D flip-flop" : kind == Kind.CLOCK ? "Clock"
                 : kind == Kind.BUFFER ? "Tri-state buffer" + delay : kind.name() + " gate" + delay;
-        return new Node(kind, id, detail, inputs, width, 66);
+        return new Node(kind, id, detail, inputs, width, height);
     }
 
-    private static Kind kindOf(DigitalComponent component) {
+    public static Kind kindOf(DigitalComponent component) {
+        if (component instanceof FunctionalBlock) return Kind.FUNC;
+        if (component instanceof XnorGate) return Kind.XNOR;
         if (component instanceof AndGate) return Kind.AND;
         if (component instanceof OrGate) return Kind.OR;
         if (component instanceof NotGate) return Kind.NOT;

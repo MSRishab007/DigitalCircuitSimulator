@@ -103,6 +103,18 @@
         td.row-number { color: var(--faint); } td.output { background: var(--output-column); }
         td.high { color: var(--green); } td.other { color: var(--orange); }
 
+        .guide { flex: 1; min-height: 0; overflow: auto; padding: 4px 16px 24px; font-size: 14px; line-height: 1.45; }
+        .guide h2 { margin: 22px 0 8px; font-size: 18px; }
+        .guide h3 { margin: 16px 0 6px; font-size: 15px; }
+        .guide p { margin: 8px 0; max-width: 78ch; }
+        .guide ol, .guide ul { margin: 8px 0; padding-left: 24px; max-width: 78ch; }
+        .guide .guide-contents { padding: 12px 12px 12px 30px; margin: 12px 0; background: var(--header); max-width: none; }
+        .guide a { color: var(--blue); }
+        .guide code { font: 13px var(--mono); color: var(--blue); }
+        .guide pre { margin: 8px 0 12px; padding: 8px 10px; overflow-x: auto; background: var(--header); font: 13px/18px var(--mono); }
+        .guide table { margin: 8px 0 12px; font: 14px var(--ui); }
+        .guide th, .guide td { min-width: 0; height: auto; padding: 4px 8px; text-align: left; vertical-align: top; }
+        .guide th { position: static; }
         .status { flex: none; display: flex; justify-content: space-between; gap: 16px; padding: 5px 12px;
             border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
         .status .right { display: flex; gap: 16px; white-space: nowrap; }
@@ -149,6 +161,7 @@
                 <button role="tab" data-tab="wave" aria-selected="false">Waveform viewer</button>
                 <button role="tab" data-tab="schematic" aria-selected="false">Schematic</button>
                 <button role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
+                <button role="tab" data-tab="guide" aria-selected="false">How to use</button>
             </div>
 
             <div class="panel" data-panel="log">
@@ -217,6 +230,10 @@
                     <div class="readout" id="truth-summary" hidden></div>
                 </div>
             </div>
+
+            <div class="panel" data-panel="guide" hidden>
+                <div class="guide" id="guide"></div>
+            </div>
         </div>
     </div>
     <div class="status">
@@ -235,17 +252,11 @@
     const UI_FONT = '"Segoe UI", "Helvetica Neue", "Noto Sans", "DejaVu Sans", Arial, sans-serif';
     const MONO_FONT = 'Consolas, Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace';
 
-    const EXAMPLES = {
-        "Full adder": "# Sample Full Adder Netlist\nSIM_TIME 100\n\nWIRE Input_A\nWIRE Input_B\nWIRE Input_Cin\nWIRE Sum\nWIRE CarryOut\nWIRE Wire1\nWIRE Wire2\nWIRE Wire3\n\nXOR g1 10 Input_A Input_B Wire1\nXOR g2 10 Wire1 Input_Cin Sum\nAND g3 10 Input_A Input_B Wire2\nAND g4 10 Wire1 Input_Cin Wire3\nOR  g5 10 Wire2 Wire3 CarryOut\n\nSTIMULUS 0 Input_A 1\nSTIMULUS 0 Input_B 0\nSTIMULUS 0 Input_Cin 1\nSTIMULUS 50 Input_B 1\n",
-        "Half adder": "# Half adder\nSIM_TIME 200\n\nWIRE A\nWIRE B\nWIRE Carry\nWIRE Sum\n\nAND carry_and 10 A B Carry\nXOR sum_xor 10 A B Sum\n\n# Try every input combination for 50 ns each\nSTIMULUS 0 A 0\nSTIMULUS 0 B 0\nSTIMULUS 50 B 1\nSTIMULUS 100 A 1\nSTIMULUS 100 B 0\nSTIMULUS 150 B 1\n",
-        "Macro full adder": "SIM_TIME 100\n\n# A reusable half adder\nDEF HALF_ADDER IN_A IN_B OUT_SUM OUT_CARRY\nXOR s_xor 10 IN_A IN_B OUT_SUM\nAND c_and 10 IN_A IN_B OUT_CARRY\nENDDEF\n\nWIRE Input_X\nWIRE Input_Y\nWIRE Input_CarryIn\nWIRE Main_Sum\nWIRE Main_CarryOut\nWIRE HA1_Sum\nWIRE HA1_Carry\nWIRE HA2_Carry\n\nHALF_ADDER ha1 Input_X Input_Y HA1_Sum HA1_Carry\nHALF_ADDER ha2 HA1_Sum Input_CarryIn Main_Sum HA2_Carry\nOR final_carry 10 HA1_Carry HA2_Carry Main_CarryOut\n\nSTIMULUS 0 Input_X 1\nSTIMULUS 0 Input_Y 0\nSTIMULUS 0 Input_CarryIn 1\nSTIMULUS 50 Input_Y 1\n",
-        "2-bit counter": "# Counts 00, 01, 10, 11 on each rising clock edge\nSIM_TIME 200\n\nWIRE CLK\nWIRE D0\nWIRE Q0\nWIRE D1\nWIRE Q1\n\nCLOCK master 20 CLK\nDFF f0 2 D0 CLK Q0\nNOT n0 1 Q0 D0\nDFF f1 2 D1 CLK Q1\nXOR x1 1 Q0 Q1 D1\n",
-        "Stuck-at fault": "# Data_In is short-circuited to ground\nSIM_TIME 100\n\nWIRE System_Clock\nWIRE Data_In\nWIRE DFF_Output\n\nFAULT STUCK_AT_0 Data_In\n\nCLOCK MasterClk 20 System_Clock\nDFF RegisterA 5 Data_In System_Clock DFF_Output\n",
-        "Tri-state buffer": "SIM_TIME 100\n\nWIRE Data_Line\nWIRE Write_Enable\nWIRE Memory_Bus\nWIRE Inverted_Bus\n\nBUFFER mem_ctrl 5 Data_Line Write_Enable Memory_Bus\nNOT inverter1 5 Memory_Bus Inverted_Bus\n\nSTIMULUS 0 Data_Line 1\nSTIMULUS 0 Write_Enable 0\nSTIMULUS 20 Write_Enable 1\nSTIMULUS 50 Data_Line 0\nSTIMULUS 80 Write_Enable 0\n"
-    };
+    const FALLBACK_NETLIST = "# Build the simulator engine to run this netlist\nWIRE A\nWIRE Y\nNOT inverter 10 A Y\nSTIMULUS 0 A 1\n";
+    const EXAMPLES = {};
 
     const engineReady = () => ["runSimulation", "validateCircuit", "analyzeCircuit", "generateTruthTable", "checkEquivalent",
-        "detectWires", "schematicLayout", "debugStart", "debugStep"].every(name => typeof window[name] === "function");
+        "detectWires", "schematicLayout", "debugStart", "debugStep", "userGuide", "exampleCircuits"].every(name => typeof window[name] === "function");
 
     function callEngine(name, ...args) {
         const response = JSON.parse(window[name](...args));
@@ -877,6 +888,12 @@
                     path.quadraticCurveTo(10, 18, 0, 36);
                     return path;
                 }
+                case "XNOR": {
+                    const path = orShape(6, 38);
+                    path.moveTo(0, 0);
+                    path.quadraticCurveTo(10, 18, 0, 36);
+                    return path;
+                }
                 case "NOT": return triangle(34);
                 case "BUFFER": return triangle(SYMBOL_W);
                 default: {
@@ -907,6 +924,8 @@
                 case "NAND": bubble(g, 38); g.fillStyle = COLOR.muted; g.fillText("NAND", 3, 22); break;
                 case "NOR": bubble(g, 38); g.fillStyle = COLOR.muted; g.fillText("NOR", 8, 22); break;
                 case "NOT": bubble(g, 34); break;
+                case "XNOR": bubble(g, 38); g.fillStyle = COLOR.muted; g.fillText("XNOR", 8, 22); break;
+                case "FUNC": g.fillText("FUNC", 7, 22); break;
                 case "BUFFER": g.fillText("en", 3, 28); break;
                 case "DFF": {
                     g.fillStyle = COLOR.text;
@@ -988,7 +1007,12 @@
 
             g.save();
             g.translate(left, top);
-            const shape = symbol(node.kind);
+            let shape = symbol(node.kind);
+            if (node.kind === "FUNC") {
+                const height = Math.max(SYMBOL_H, node.inputs.length * 24 + 6);
+                shape = new Path2D();
+                shape.rect(0, (SYMBOL_H - height) / 2, SYMBOL_W - 4, height);
+            }
             g.fillStyle = "#ffffff";
             g.fill(shape);
             g.strokeStyle = hovered ? COLOR.blue : COLOR.text;
@@ -1458,8 +1482,9 @@
         const ports = callEngine("detectWires", netlist);
         const typed = [...new Set([...inputs, ...outputs])];
         const missing = typed.filter(name => !ports.wires.includes(name));
-        if (!inputs.length || !outputs.length || missing.length === typed.length) {
-            if (!ports.inputs.length || !ports.outputs.length) {
+        const incomplete = !ports.sequential && (!inputs.length || !outputs.length);
+        if (!typed.length || incomplete || missing.length === typed.length) {
+            if (!ports.sequential && (!ports.inputs.length || !ports.outputs.length)) {
                 throw new Error("Could not detect input and output wires. Enter them above. Wires in this netlist: " + ports.wires.join(", "));
             }
             return { inputs: ports.inputs, outputs: ports.outputs,
@@ -1502,7 +1527,8 @@
         $("result-text").hidden = true;
         $("result-table").hidden = false;
         $("truth-summary").hidden = false;
-        $("truth-summary").textContent = `${table.rows.length} rows. Shaded columns are outputs. ${note}`.trim();
+        const stateNote = table.outputs.some(name => name.endsWith("+")) ? "A name ending in + is the value after the next clock edge. " : "";
+        $("truth-summary").textContent = `${table.rows.length} rows. Shaded columns are outputs. ${stateNote}${note}`.trim();
         lastTable = table;
         updateButtons();
     }
@@ -1512,11 +1538,12 @@
         runTask("Detecting wires...", () => {
             try {
                 const ports = callEngine("detectWires", netlist);
-                if (!ports.inputs.length && !ports.outputs.length) {
+                if (!ports.inputs.length && !ports.outputs.length && !ports.sequential) {
                     showText("No input or output wires were found in this netlist.");
                 } else {
                     setWireFields(ports);
-                    showText(`Inputs: ${ports.inputs.join(", ")}\nOutputs: ${ports.outputs.join(", ")}`);
+                    showText(`Inputs: ${ports.inputs.join(", ")}\nOutputs: ${ports.outputs.join(", ")}`
+                        + (ports.sequential ? `\nState: ${ports.state.join(", ")}` : ""));
                 }
                 setActivity("Wires detected", "good");
             } catch (error) {
@@ -1545,7 +1572,7 @@
                 const result = callEngine("analyzeCircuit", netlist);
                 const frequency = result.criticalPathDelay === 0 ? "not applicable (no gate delay on any path)"
                     : result.maxClockFrequencyMHz.toFixed(2) + " MHz";
-                showText(`Critical path delay: ${result.criticalPathDelay} ns\nMaximum clock frequency: ${frequency}`);
+                showText(`Critical path delay: ${result.criticalPathDelay} ns\nMaximum clock frequency: ${frequency}\nResources: ${result.resources}`);
                 setActivity("Timing analysis finished", "good");
             } catch (error) {
                 showFailure("Analysis failed", error);
@@ -1607,7 +1634,7 @@
         if (engineReady()) {
             try {
                 const ports = callEngine("detectWires", text);
-                if (ports.inputs.length || ports.outputs.length) setWireFields(ports);
+                if (ports.inputs.length || ports.outputs.length || ports.sequential) setWireFields(ports);
             } catch (error) {
                 // Running or analyzing this netlist reports the same error with its line number.
             }
@@ -1639,6 +1666,12 @@
         setActivity("Saved " + name + " to your downloads");
     }
     $("save").addEventListener("click", saveClicked);
+    if (engineReady()) {
+        callEngine("exampleCircuits").examples.forEach(example => { EXAMPLES[example.name] = example.netlist; });
+        $("guide").innerHTML = window.userGuide();
+    } else {
+        $("guide").textContent = "Build the simulator engine to read this guide. The steps are at the top of the page.";
+    }
     Object.keys(EXAMPLES).forEach(name => {
         const option = document.createElement("option");
         option.textContent = name;
@@ -1701,7 +1734,7 @@
     $("reset").addEventListener("click", resetClicked);
 
     $("notice").hidden = engineReady();
-    editor.set(EXAMPLES["Full adder"]);
+    editor.set(EXAMPLES["Full adder (gates)"] || FALLBACK_NETLIST);
     comparison.set("# Paste a second netlist here for equivalence checking\n");
     setScrubberEnabled(false);
     setDirty(false);

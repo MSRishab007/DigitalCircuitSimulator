@@ -1,7 +1,9 @@
 package simulator;
 
 import org.teavm.jso.JSExport;
+import simulator.application.ExampleCircuits;
 import simulator.application.SimulationApplicationService;
+import simulator.application.UserGuide;
 import simulator.components.Clock;
 import simulator.core.DigitalComponent;
 import simulator.engine.CircuitEquivalenceChecker;
@@ -49,10 +51,28 @@ public class WasmBridge {
                 TimingAnalysisResult result = SERVICE.analyze(netlist);
                 return "{\"success\":true,\"criticalPathDelay\":"
                         + result.getCriticalPathDelay() + ",\"maxClockFrequencyMHz\":"
-                        + result.getMaxClockFrequencyMHz() + "}";
+                        + result.getMaxClockFrequencyMHz() + ",\"resources\":\""
+                        + escapeJson(SERVICE.resources(netlist).describe()) + "\"}";
             } catch (Exception e) {
                 return errorJson(e);
             }
+        }
+
+    @JSExport
+    public static String userGuide() {
+            return UserGuide.html(UserGuide.Surface.BROWSER);
+        }
+
+    @JSExport
+    public static String exampleCircuits() {
+            StringBuilder json = new StringBuilder("{\"success\":true,\"examples\":[");
+            String separator = "";
+            for (String name : ExampleCircuits.names()) {
+                json.append(separator).append("{\"name\":\"").append(escapeJson(name))
+                        .append("\",\"netlist\":\"").append(escapeJson(ExampleCircuits.netlist(name))).append("\"}");
+                separator = ",";
+            }
+            return json.append("]}").toString();
         }
 
     private static SimulationDebugger debugger;
@@ -67,6 +87,10 @@ public class WasmBridge {
                 parser.parseString(netlist);
                 if (!new TopologyValidator().validateNoCombinationalLoops(parser.getComponents())) {
                     throw new IllegalStateException("Unclocked combinational loop detected");
+                }
+                String conflict = new TopologyValidator().findDriverConflict(parser.getComponents());
+                if (conflict != null) {
+                    throw new IllegalStateException(conflict);
                 }
                 VcdLogger logger = new VcdLogger(null, context);
                 parser.getAllWires().forEach(logger::monitorWire);
@@ -184,7 +208,9 @@ public class WasmBridge {
                 var ports = SERVICE.detectPorts(netlist);
                 return "{\"success\":true,\"wires\":" + listJson(ports.getWires())
                         + ",\"inputs\":" + listJson(ports.getInputs())
-                        + ",\"outputs\":" + listJson(ports.getOutputs()) + "}";
+                        + ",\"outputs\":" + listJson(ports.getOutputs())
+                        + ",\"state\":" + listJson(ports.getStateWires())
+                        + ",\"sequential\":" + ports.isSequential() + "}";
             } catch (Exception e) {
                 return errorJson(e);
             }

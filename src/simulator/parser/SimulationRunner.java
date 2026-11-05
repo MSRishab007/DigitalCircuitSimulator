@@ -29,6 +29,10 @@ public final class SimulationRunner {
         if (!new TopologyValidator().validateNoCombinationalLoops(parser.getComponents())) {
             throw new IllegalStateException("Validation Failed: Unclocked combinational loop detected.");
         }
+        String conflict = new TopologyValidator().findDriverConflict(parser.getComponents());
+        if (conflict != null) {
+            throw new IllegalStateException("Validation Failed: " + conflict);
+        }
 
         StaticTimingAnalyzer analyzer = new StaticTimingAnalyzer();
         TimingAnalysisResult timing = analyzer.analyze(parser.getComponents());

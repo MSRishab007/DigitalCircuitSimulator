@@ -9,6 +9,7 @@ import simulator.engine.TruthTableGenerator;
 import simulator.parser.NetlistParser;
 import simulator.parser.SimulationRunner;
 import simulator.parser.TopologyValidator;
+import simulator.schematic.CircuitResources;
 import simulator.engine.SimulationContext;
 
 import java.util.List;
@@ -23,10 +24,13 @@ public final class SimulationApplicationService {
 
     public ValidationResult validate(String netlist) {
         NetlistParser parser = parse(netlist);
-        boolean valid = new TopologyValidator().validateNoCombinationalLoops(
-                parser.getComponents());
-        return new ValidationResult(valid,
-                valid ? "Netlist is valid" : "Unclocked combinational loop detected");
+        TopologyValidator validator = new TopologyValidator();
+        if (!validator.validateNoCombinationalLoops(parser.getComponents())) {
+            return new ValidationResult(false, "Unclocked combinational loop detected");
+        }
+        String conflict = validator.findDriverConflict(parser.getComponents());
+        return conflict == null ? new ValidationResult(true, "Netlist is valid")
+                : new ValidationResult(false, conflict);
     }
 
     public TimingAnalysisResult analyze(String netlist) {
@@ -41,6 +45,10 @@ public final class SimulationApplicationService {
     /** Finds the wires a netlist leaves undriven (inputs) and unread (outputs). */
     public CircuitPorts detectPorts(String netlist) {
         return new CircuitPorts(parse(netlist));
+    }
+
+    public CircuitResources resources(String netlist) {
+        return new CircuitResources(parse(netlist));
     }
 
     public TruthTable truthTable(String netlist, List<String> inputs,

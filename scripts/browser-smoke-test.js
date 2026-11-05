@@ -46,6 +46,16 @@ const schematic = call("schematicLayout", netlist);
 assert.ok(schematic.nodes.some(node => node.kind === "AND"));
 assert.ok(schematic.nets.length > 0);
 
+assert.ok(engine.userGuide().includes("Writing a netlist"));
+console.log("ok userGuide");
+const examples = call("exampleCircuits").examples;
+assert.ok(examples.length > 0);
+examples.forEach(example => assert.strictEqual(JSON.parse(engine.runSimulation(example.netlist)).success, true, example.name));
+console.log("ok every example simulates");
+
+const stateTable = call("generateTruthTable", examples.find(example => example.name === "2-bit counter").netlist, "", "");
+assert.strictEqual(stateTable.rows.length, 4);
+
 const session = call("debugStart", netlist);
 assert.strictEqual(session.time, 0);
 const step = call("debugStep");

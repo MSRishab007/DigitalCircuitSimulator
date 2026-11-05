@@ -1,7 +1,9 @@
 package simulator.gui;
 
 import simulator.components.Clock;
+import simulator.application.ExampleCircuits;
 import simulator.application.SimulationApplicationService;
+import simulator.application.UserGuide;
 import simulator.core.DigitalComponent;
 import simulator.engine.CircuitEquivalenceChecker;
 import simulator.engine.CircuitPorts;
@@ -109,6 +111,7 @@ public class SimulatorDashboard extends JFrame {
     private JPanel schematicTab;
     private String simulatedNetlist;
     private boolean updatingSlider;
+    private volatile String resourceSummary = "";
     private final List<JButton> busyButtons = new ArrayList<>();
     private final Map<JButton, Boolean> enabledBeforeBusy = new HashMap<>();
     private TruthTable lastTruthTable;
@@ -150,13 +153,26 @@ public class SimulatorDashboard extends JFrame {
         toolbar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE),
                 new EmptyBorder(8, 12, 8, 12)));
-        toolbar.add(Ui.row(6, openBtn, saveBtn, saveAsBtn, Ui.gap(16), runBtn, stepBtn, resetBtn),
+        JComboBox<String> examples = new JComboBox<>();
+        examples.addItem("Load example");
+        ExampleCircuits.names().forEach(examples::addItem);
+        examples.setFont(Theme.ui(Font.PLAIN, 13f));
+        examples.setBackground(Color.WHITE);
+        examples.setForeground(Theme.TEXT);
+        examples.setPreferredSize(new Dimension(190, 28));
+        examples.addActionListener(e -> {
+            if (examples.getSelectedIndex() > 0) {
+                loadExample((String) examples.getSelectedItem());
+                examples.setSelectedIndex(0);
+            }
+        });
+        toolbar.add(Ui.row(6, openBtn, saveBtn, saveAsBtn, examples, Ui.gap(16), runBtn, stepBtn, resetBtn),
                 BorderLayout.WEST);
 
         // --- Editor Pane (Left) ---
         editorArea = new CodeArea(14f, Colorizers::netlist, null, true);
         editorArea.setTabSize(4);
-        editorArea.setText(getDefaultNetlistSample());
+        editorArea.setText(ExampleCircuits.defaultNetlist());
         editorArea.setCaretPosition(0);
         JScrollPane editorScroll = Ui.scroll(editorArea);
         editorScroll.setRowHeaderView(new LineGutter(editorArea));
@@ -189,6 +205,7 @@ public class SimulatorDashboard extends JFrame {
         rightTabs.addTab("Schematic", schematicTab);
 
         rightTabs.addTab("Analysis", createAnalysisPanel());
+        rightTabs.addTab("How to use", createGuideTab());
         rightTabs.addChangeListener(e -> {
             if (rightTabs.getSelectedComponent() == schematicTab) {
                 refreshSchematic();
@@ -442,6 +459,46 @@ public class SimulatorDashboard extends JFrame {
         return tab;
     }
 
+    private JComponent createGuideTab() {
+        javax.swing.text.html.HTMLEditorKit kit = new javax.swing.text.html.HTMLEditorKit();
+        javax.swing.text.html.StyleSheet styles = kit.getStyleSheet();
+        Font body = Theme.ui(Font.PLAIN, 13f);
+        Font code = Theme.mono(12.5f);
+        styles.addRule("body { font-family: '" + body.getFamily() + "'; font-size: 13pt; color: #1f2328; margin: 12px; }");
+        styles.addRule("h2 { font-size: 17pt; margin-top: 18px; margin-bottom: 6px; }");
+        styles.addRule("h3 { font-size: 14pt; margin-top: 12px; margin-bottom: 4px; }");
+        styles.addRule("p { margin-top: 6px; margin-bottom: 8px; }");
+        styles.addRule("code { font-family: '" + code.getFamily() + "'; font-size: 12pt; color: #1d5fbf; }");
+        styles.addRule("pre { font-family: '" + code.getFamily() + "'; font-size: 12pt; background: #f3f4f6; margin: 6px 0 10px 0; padding: 8px; }");
+        styles.addRule("th { background: #f3f4f6; }");
+        styles.addRule("a { color: #1d5fbf; }");
+        JEditorPane pane = new JEditorPane();
+        pane.setEditable(false);
+        pane.setEditorKit(kit);
+        pane.setBackground(Color.WHITE);
+        pane.setText("<html><body>" + UserGuide.html(UserGuide.Surface.DESKTOP) + "</body></html>");
+        pane.setCaretPosition(0);
+        pane.addHyperlinkListener(event -> {
+            if (event.getEventType() == javax.swing.event.HyperlinkEvent.EventType.ACTIVATED
+                    && event.getDescription().startsWith("#")) {
+                pane.scrollToReference(event.getDescription().substring(1));
+            }
+        });
+        return Ui.scroll(pane);
+    }
+
+    private void loadExample(String name) {
+        if (!confirmDiscardChanges("loading an example")) {
+            return;
+        }
+        currentFile = null;
+        editorArea.setText(ExampleCircuits.netlist(name));
+        editorArea.setCaretPosition(0);
+        setDirty(false);
+        detectWiresQuietly();
+        setActivity("Loaded the " + name + " example", Theme.MUTED);
+    }
+
     private JPanel createSchematicTab() {
         ColorButton zoomIn = new ColorButton("Zoom in", Theme.SLATE);
         ColorButton zoomOut = new ColorButton("Zoom out", Theme.SLATE);
@@ -641,10 +698,11 @@ public class SimulatorDashboard extends JFrame {
             String netlist = editorArea.getText();
             runTask("Detecting wires...", () -> service.detectPorts(netlist), ports -> {
                 applyDetectedWires(ports);
-                showText(ports.getInputs().isEmpty() && ports.getOutputs().isEmpty()
+                showText(ports.getInputs().isEmpty() && ports.getOutputs().isEmpty() && !ports.isSequential()
                         ? "No input or output wires were found in this netlist."
                         : "Inputs: " + String.join(", ", ports.getInputs())
-                        + "\nOutputs: " + String.join(", ", ports.getOutputs()), Theme.TEXT);
+                        + "\nOutputs: " + String.join(", ", ports.getOutputs())
+                        + (ports.isSequential() ? "\nState: " + String.join(", ", ports.getStateWires()) : ""), Theme.TEXT);
                 setActivity("Wires detected", Theme.GREEN);
             }, "Wire detection failed");
         });
@@ -657,12 +715,16 @@ public class SimulatorDashboard extends JFrame {
         });
         timingButton.addActionListener(event -> {
             String netlist = editorArea.getText();
-            runTask("Analyzing timing...", () -> service.analyze(netlist), result -> {
+            runTask("Analyzing timing...", () -> {
+                resourceSummary = service.resources(netlist).describe();
+                return service.analyze(netlist);
+            }, result -> {
                 String frequency = result.getCriticalPathDelay() == 0
                         ? "not applicable (no gate delay on any path)"
                         : String.format("%.2f MHz", result.getMaxClockFrequencyMHz());
                 showText("Critical path delay: " + result.getCriticalPathDelay() + " ns\n"
-                        + "Maximum clock frequency: " + frequency, Theme.TEXT);
+                        + "Maximum clock frequency: " + frequency + "\n"
+                        + "Resources: " + resourceSummary, Theme.TEXT);
                 setActivity("Timing analysis finished", Theme.GREEN);
             }, "Analysis failed");
         });
@@ -773,8 +835,9 @@ public class SimulatorDashboard extends JFrame {
                 missing.add(name);
             }
         }
-        if (typed.isEmpty() || inputs.isEmpty() || outputs.isEmpty() || missing.size() == typed.size()) {
-            if (ports.getInputs().isEmpty() || ports.getOutputs().isEmpty()) {
+        boolean incomplete = !ports.isSequential() && (inputs.isEmpty() || outputs.isEmpty());
+        if (typed.isEmpty() || incomplete || missing.size() == typed.size()) {
+            if (!ports.isSequential() && (ports.getInputs().isEmpty() || ports.getOutputs().isEmpty())) {
                 throw new IllegalArgumentException("Could not detect input and output wires. "
                         + "Enter them above. Wires in this netlist: " + listWires(ports.getWires()));
             }
@@ -808,7 +871,7 @@ public class SimulatorDashboard extends JFrame {
     }
 
     private void applyDetectedWires(CircuitPorts ports) {
-        if (!ports.getInputs().isEmpty() || !ports.getOutputs().isEmpty()) {
+        if (ports.isSequential() || !ports.getInputs().isEmpty() || !ports.getOutputs().isEmpty()) {
             inputsField.setText(String.join(",", ports.getInputs()));
             outputsField.setText(String.join(",", ports.getOutputs()));
         }
@@ -886,7 +949,9 @@ public class SimulatorDashboard extends JFrame {
             tableColumn.setPreferredWidth(Math.max(52, header.stringWidth(String.valueOf(columns[i])) + 24));
         }
 
-        String summary = table.getRows().size() + " rows. Shaded columns are outputs.";
+        boolean stateTable = table.getOutputs().stream().anyMatch(name -> name.endsWith("+"));
+        String summary = table.getRows().size() + " rows. Shaded columns are outputs."
+                + (stateTable ? " A name ending in + is the value after the next clock edge." : "");
         truthSummary.setText(note == null ? summary : summary + " " + note);
         truthSummary.setToolTipText(note);
         enabledBeforeBusy.put(exportCsvBtn, true);
@@ -1083,6 +1148,10 @@ public class SimulatorDashboard extends JFrame {
         if (!new TopologyValidator().validateNoCombinationalLoops(debugParser.getComponents())) {
             throw new IllegalStateException("Unclocked combinational loop detected");
         }
+        String conflict = new TopologyValidator().findDriverConflict(debugParser.getComponents());
+        if (conflict != null) {
+            throw new IllegalStateException(conflict);
+        }
         debugWaveformPath = new File("debug-output.vcd").getAbsolutePath();
         debugLogger = new VcdLogger(debugWaveformPath, debugContext);
         debugParser.getAllWires().forEach(debugLogger::monitorWire);
@@ -1152,28 +1221,6 @@ public class SimulatorDashboard extends JFrame {
 
     private void log(String message) {
         logConsole.append(message + "\n");
-    }
-
-    private String getDefaultNetlistSample() {
-        return "# Sample Full Adder Netlist\n" +
-               "SIM_TIME 100\n\n" +
-               "WIRE Input_A\n" +
-               "WIRE Input_B\n" +
-               "WIRE Input_Cin\n" +
-               "WIRE Sum\n" +
-               "WIRE CarryOut\n" +
-               "WIRE Wire1\n" +
-               "WIRE Wire2\n" +
-               "WIRE Wire3\n\n" +
-               "XOR g1 10 Input_A Input_B Wire1\n" +
-               "XOR g2 10 Wire1 Input_Cin Sum\n" +
-               "AND g3 10 Input_A Input_B Wire2\n" +
-               "AND g4 10 Wire1 Input_Cin Wire3\n" +
-               "OR  g5 10 Wire2 Wire3 CarryOut\n\n" +
-               "STIMULUS 0 Input_A 1\n" +
-               "STIMULUS 0 Input_B 0\n" +
-               "STIMULUS 0 Input_Cin 1\n" +
-               "STIMULUS 50 Input_B 1\n";
     }
 
     public static void main(String[] args) {

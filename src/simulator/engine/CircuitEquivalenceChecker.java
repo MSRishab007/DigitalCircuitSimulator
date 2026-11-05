@@ -7,6 +7,12 @@ public final class CircuitEquivalenceChecker {
                                      List<String> inputNames, List<String> outputNames) {
         TruthTable first = new TruthTableGenerator().generate(firstNetlist, inputNames, outputNames);
         TruthTable second = new TruthTableGenerator().generate(secondNetlist, inputNames, outputNames);
+        if (!first.getInputs().equals(second.getInputs()) || !first.getOutputs().equals(second.getOutputs())) {
+            throw new IllegalArgumentException("These circuits cannot be compared row by row, because their "
+                    + "columns differ: " + first.getInputs() + " to " + first.getOutputs() + " and "
+                    + second.getInputs() + " to " + second.getOutputs()
+                    + ". Sequential circuits must use the same flip-flop output names.");
+        }
         for (int i = 0; i < first.getRows().size(); i++) {
             if (!first.getRows().get(i).getOutputStates()
                     .equals(second.getRows().get(i).getOutputStates())) {

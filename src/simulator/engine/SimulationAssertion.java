@@ -21,8 +21,12 @@ public final class SimulationAssertion {
         this.expectedState = expectedState;
     }
 
-    public void evaluate(long currentTime) {
-        if (!checked && currentTime == time) {
+    public long getTime() {
+        return time;
+    }
+
+    public void check() {
+        if (!checked) {
             checked = true;
             if (wire.getCurrentState() != expectedState) {
                 throw new IllegalStateException("Assertion failed at t=" + time
@@ -32,11 +36,11 @@ public final class SimulationAssertion {
         }
     }
 
-    public void verifyCompleted(long currentTime) {
-        evaluate(currentTime);
+    public void verifyCompleted(long maxSimulationTime) {
         if (!checked) {
-            throw new IllegalStateException("Assertion could not be evaluated at t=" + time
-                    + ": simulation ended at t=" + currentTime);
+            throw new IllegalStateException("Assertion at t=" + time
+                    + " is after the end of the simulation at t=" + maxSimulationTime
+                    + ". Increase SIM_TIME or move the assertion.");
         }
     }
 }

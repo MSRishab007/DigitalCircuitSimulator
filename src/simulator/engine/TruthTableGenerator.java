@@ -1,8 +1,5 @@
 package simulator.engine;
 
-import simulator.components.Clock;
-import simulator.components.SequentialComponent;
-import simulator.core.DigitalComponent;
 import simulator.core.VoltageState;
 import simulator.parser.NetlistParser;
 import simulator.parser.TopologyValidator;
@@ -32,52 +29,67 @@ public final class TruthTableGenerator {
 
     public TruthTable generate(String netlist, List<String> inputNames,
                                List<String> outputNames) {
-        if (inputNames == null || outputNames == null || inputNames.isEmpty()
-                || outputNames.isEmpty()) {
+        if (inputNames == null || outputNames == null) {
             throw new IllegalArgumentException("Truth tables require input and output wires");
         }
-        if (inputNames.size() > maximumInputs) {
+        String circuit = removeTestbench(netlist);
+        CircuitPorts ports = validate(circuit, inputNames, outputNames);
+        List<String> state = ports.getStateWires();
+        List<String> outputs = new ArrayList<>();
+        for (String output : outputNames) {
+            if (!state.contains(output)) {
+                outputs.add(output);
+            }
+        }
+        if (state.isEmpty() && (inputNames.isEmpty() || outputs.isEmpty())) {
+            throw new IllegalArgumentException("Truth tables require input and output wires");
+        }
+        List<String> driven = new ArrayList<>(inputNames);
+        driven.addAll(state);
+        if (driven.size() > maximumInputs) {
             throw new IllegalArgumentException("Truth table input count exceeds configured limit");
         }
-        String circuit = removeTestbench(netlist);
-        validate(circuit, inputNames, outputNames);
 
         List<TruthTable.Row> rows = new ArrayList<>();
-        int combinations = 1 << inputNames.size();
+        int combinations = 1 << driven.size();
         for (int mask = 0; mask < combinations; mask++) {
             SimulationContext context = new SimulationContext();
             NetlistParser parser = new NetlistParser(context);
             parser.parseString(circuit);
-            // validate() rules out clocks and loops, so the circuit settles and needs no time limit.
             context.getEventEngine().setMaxSimulationTime(Long.MAX_VALUE);
             List<String> inputStates = new ArrayList<>();
-            for (int bit = 0; bit < inputNames.size(); bit++) {
-                VoltageState state = ((mask >> (inputNames.size() - bit - 1)) & 1) == 1
+            for (int bit = 0; bit < driven.size(); bit++) {
+                VoltageState value = ((mask >> (driven.size() - bit - 1)) & 1) == 1
                         ? VoltageState.HIGH : VoltageState.LOW;
-                inputStates.add(format(state));
-                context.getEventEngine().scheduleEvent(
-                        new SignalEvent(0, parser.getWire(inputNames.get(bit)), state));
+                inputStates.add(format(value));
+                if (bit >= inputNames.size()) {
+                    parser.getWire(driven.get(bit)).injectStuckAtFault(value);
+                } else {
+                    context.getEventEngine().scheduleEvent(
+                            new SignalEvent(0, parser.getWire(driven.get(bit)), value));
+                }
             }
             context.runSimulation();
             List<String> outputStates = new ArrayList<>();
-            for (String outputName : outputNames) {
+            for (String next : ports.getNextStateWires()) {
+                outputStates.add(format(parser.getWire(next).getCurrentState()));
+            }
+            for (String outputName : outputs) {
                 outputStates.add(format(parser.getWire(outputName).getCurrentState()));
             }
             rows.add(new TruthTable.Row(inputStates, outputStates));
         }
-        return new TruthTable(inputNames, outputNames, rows);
+        List<String> columns = new ArrayList<>();
+        for (String wire : state) {
+            columns.add(wire + "+");
+        }
+        columns.addAll(outputs);
+        return new TruthTable(driven, columns, rows);
     }
 
-    private static void validate(String circuit, List<String> inputNames, List<String> outputNames) {
+    private static CircuitPorts validate(String circuit, List<String> inputNames, List<String> outputNames) {
         NetlistParser parser = new NetlistParser(new SimulationContext());
         parser.parseString(circuit);
-        for (DigitalComponent component : parser.getComponents()) {
-            if (component instanceof Clock || component instanceof SequentialComponent) {
-                throw new IllegalArgumentException("Truth tables only work on combinational circuits, but "
-                        + component.getComponentId() + " is a clock or flip-flop. "
-                        + "Run a simulation and read the waveform instead.");
-            }
-        }
         if (!new TopologyValidator().validateNoCombinationalLoops(parser.getComponents())) {
             throw new IllegalArgumentException("Truth tables cannot be generated for a circuit "
                     + "with a combinational loop");
@@ -92,7 +104,12 @@ public final class TruthTableGenerator {
                 throw new IllegalArgumentException("Input wire " + name + " is already driven by "
                         + ports.getDriver(name) + ". Choose wires that no gate drives.");
             }
+            if (ports.getClockWires().contains(name)) {
+                throw new IllegalArgumentException(name + " is a clock wire, so it cannot be a table input. "
+                        + "A state table already shows the result of one clock edge.");
+            }
         }
+        return ports;
     }
 
     /**

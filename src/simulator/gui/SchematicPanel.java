@@ -440,7 +440,9 @@ final class SchematicPanel extends JPanel implements Scrollable {
         g.drawLine(left + SYMBOL_WIDTH - 4, node.y, node.x + node.width, node.y);
 
         g.translate(left, top);
-        Shape shape = symbol(node.kind);
+        Shape shape = node.kind == SchematicLayout.Kind.FUNC
+                ? new Rectangle(0, (SYMBOL_HEIGHT - functionHeight(node)) / 2, SYMBOL_WIDTH - 4, functionHeight(node))
+                : symbol(node.kind);
         g.setColor(Color.WHITE);
         g.fill(shape);
         g.setColor(hovered ? HOVER : TEXT);
@@ -454,6 +456,10 @@ final class SchematicPanel extends JPanel implements Scrollable {
         FontMetrics metrics = g.getFontMetrics();
         g.drawString(node.id, node.x + (node.width - metrics.stringWidth(node.id)) / 2,
                 node.y + node.height / 2 - 3);
+    }
+
+    private static int functionHeight(SchematicLayout.Node node) {
+        return Math.max(SYMBOL_HEIGHT, node.inputCount * 24 + 6);
     }
 
     private static void paintSymbolDetails(Graphics2D g, SchematicLayout.Kind kind, int inputCount) {
@@ -482,6 +488,14 @@ final class SchematicPanel extends JPanel implements Scrollable {
                 break;
             case NOT:
                 drawBubble(g, 34);
+                break;
+            case XNOR:
+                drawBubble(g, 38);
+                g.setColor(MUTED);
+                g.drawString("XNOR", 8, 22);
+                break;
+            case FUNC:
+                g.drawString("FUNC", 7, 22);
                 break;
             case BUFFER:
                 g.drawString("en", 3, 28);
@@ -540,6 +554,11 @@ final class SchematicPanel extends JPanel implements Scrollable {
                 xor.moveTo(0, 0);
                 xor.quadTo(10, 18, 0, 36);
                 return xor;
+            case XNOR:
+                Path2D xnor = orShape(6, 38);
+                xnor.moveTo(0, 0);
+                xnor.quadTo(10, 18, 0, 36);
+                return xnor;
             case NOT:
                 return triangle(34);
             case BUFFER:

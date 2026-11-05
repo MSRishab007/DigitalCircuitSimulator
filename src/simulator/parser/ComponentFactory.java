@@ -6,6 +6,7 @@ import simulator.components.OrGate;
 import simulator.components.SequentialComponent;
 import simulator.components.TriStateBuffer;
 import simulator.components.XorGate;
+import simulator.components.XnorGate;
 import simulator.components.LowState;
 import simulator.components.NandGate;
 import simulator.components.NorGate;
@@ -31,6 +32,7 @@ public class ComponentFactory {
         register("XOR", XorGate::new);
         register("NAND", NandGate::new);
         register("NOR", NorGate::new);
+        register("XNOR", XnorGate::new);
     }
     
     public static DigitalComponent createComponent(String type, String id, int param) {
