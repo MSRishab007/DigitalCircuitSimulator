@@ -1,7 +1,9 @@
 package simulator.application;
 
 import simulator.engine.CircuitPorts;
+import simulator.engine.FaultCoverageAnalyzer;
 import simulator.engine.SimulationContext;
+import simulator.engine.TimingAnalysisResult;
 import simulator.engine.TruthTable;
 import simulator.parser.NetlistParser;
 import simulator.parser.SimulationRunner;
@@ -49,6 +51,9 @@ public final class SelfCheck {
         check("Wire with two gate drivers is rejected", this::driverConflict);
         check("Syntax error names its line", this::syntaxError);
         check("Static timing analysis and resource count", this::analysis);
+        check("Flip-flop clock-to-Q delay starts a timing path", this::flipFlopTiming);
+        check("Fault coverage finds an untested fault", this::faultCoverage);
+        check("Macros become modules on the schematic", this::modules);
         check("Every example simulates and draws a schematic", this::examples);
         check("Every netlist in the guide is valid", this::guideNetlists);
         check("Engine speed is at least 10,000 events per second", this::speed);
@@ -193,7 +198,10 @@ public final class SelfCheck {
     }
 
     private void assertion() {
-        expectFailure("WIRE A\nWIRE Y\nNOT n 1 A Y\nSTIMULUS 0 A 1\nASSERT 5 Y 1\n", "Assertion failed at t=5");
+        SimulationRunner.SimulationResult result = service.simulate(
+                "WIRE A\nWIRE Y\nNOT n 1 A Y\nSTIMULUS 0 A 1\nASSERT 5 Y 0\nASSERT 6 Y 1\n", null);
+        expect(result.getFailedAssertionCount() == 1, "Expected one of two assertions to fail");
+        expectEqual("FAIL t=6 Y expected 1, was 0", result.getAssertions().get(1).describe(), "Assertion report");
     }
 
     private void loop() {
@@ -219,9 +227,34 @@ public final class SelfCheck {
     }
 
     private void analysis() {
-        expect(service.analyze(ExampleCircuits.defaultNetlist()).getCriticalPathDelay() == 30, "Expected a 30 ns critical path");
+        TimingAnalysisResult timing = service.analyze(ExampleCircuits.defaultNetlist());
+        expect(timing.getCriticalPathDelay() == 30, "Expected a 30 ns critical path");
+        expect(!timing.getCriticalPath().isEmpty(), "Expected the critical path's gates to be named");
         expectEqual("5 components (2 AND, 1 OR, 2 XOR), 8 wires",
                 service.resources(ExampleCircuits.defaultNetlist()).describe(), "Resources");
+    }
+
+    private void flipFlopTiming() {
+        TimingAnalysisResult timing = service.analyze("WIRE D\nWIRE C\nWIRE Q\nWIRE Y\nDFF f 4 D C Q\nNOT n 6 Q Y\n");
+        expect(timing.getCriticalPathDelay() == 10, "Expected 4 ns clock-to-Q plus a 6 ns gate");
+        expectEqual("f > n", String.join(" > ", timing.getCriticalPath()), "Critical path");
+    }
+
+    private void faultCoverage() {
+        FaultCoverageAnalyzer.Result result = service.faultCoverage(
+                "SIM_TIME 50\nWIRE A\nWIRE Y\nNOT n 1 A Y\nSTIMULUS 0 A 0\n");
+        expect(result.getTotalFaults() == 4, "Expected two faults on each of two wires");
+        expect(result.getUndetected().contains("A stuck at 0"), "A stuck at 0 cannot be seen when A is always 0");
+        expect(!result.getUndetected().contains("A stuck at 1"), "A stuck at 1 changes the output");
+    }
+
+    private void modules() {
+        NetlistParser parser = new NetlistParser(new SimulationContext());
+        parser.parseString("WIRE A\nWIRE B\nWIRE S\nWIRE C\nHALF_ADDER h A B S C\n");
+        expect(parser.getModules().size() == 1, "Expected one module");
+        SchematicLayout layout = SchematicLayout.build(parser, true);
+        expect(layout.getNodes().stream().anyMatch(node -> node.kind == SchematicLayout.Kind.MODULE
+                && node.id.equals("h") && node.outputCount == 2), "Expected a module with two outputs");
     }
 
     private void examples() {

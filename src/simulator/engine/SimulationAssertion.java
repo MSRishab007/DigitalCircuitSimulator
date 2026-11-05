@@ -7,7 +7,7 @@ public final class SimulationAssertion {
     private final long time;
     private final Wire wire;
     private final VoltageState expectedState;
-    private boolean checked;
+    private VoltageState actualState;
 
     public SimulationAssertion(long time, Wire wire, VoltageState expectedState) {
         if (time < 0) {
@@ -26,21 +26,38 @@ public final class SimulationAssertion {
     }
 
     public void check() {
-        if (!checked) {
-            checked = true;
-            if (wire.getCurrentState() != expectedState) {
-                throw new IllegalStateException("Assertion failed at t=" + time
-                        + ": " + wire.getWireId() + " expected " + expectedState
-                        + " but was " + wire.getCurrentState());
-            }
+        if (actualState == null) {
+            actualState = wire.getCurrentState();
         }
     }
 
-    public void verifyCompleted(long maxSimulationTime) {
-        if (!checked) {
-            throw new IllegalStateException("Assertion at t=" + time
-                    + " is after the end of the simulation at t=" + maxSimulationTime
-                    + ". Increase SIM_TIME or move the assertion.");
+    public boolean wasChecked() {
+        return actualState != null;
+    }
+
+    public boolean hasPassed() {
+        return actualState == expectedState;
+    }
+
+    public String describe() {
+        String where = "t=" + time + " " + wire.getWireId();
+        if (actualState == null) {
+            return "FAIL " + where + " expected " + symbol(expectedState) + ", but the simulation ended first";
+        }
+        return hasPassed() ? "PASS " + where + " is " + symbol(actualState)
+                : "FAIL " + where + " expected " + symbol(expectedState) + ", was " + symbol(actualState);
+    }
+
+    private static String symbol(VoltageState state) {
+        switch (state) {
+            case HIGH:
+                return "1";
+            case LOW:
+                return "0";
+            case HIGH_Z:
+                return "Z";
+            default:
+                return "X";
         }
     }
 }

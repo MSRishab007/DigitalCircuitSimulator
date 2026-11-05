@@ -13,7 +13,7 @@ public class Main {
     private static final SimulationApplicationService SERVICE =
             new SimulationApplicationService();
     private static final java.util.Set<String> COMMANDS =
-            java.util.Set.of("simulate", "validate", "analyze", "truth-table", "equivalent", "check", "guide", "help");
+            java.util.Set.of("simulate", "validate", "analyze", "truth-table", "equivalent", "fault-coverage", "check", "guide", "help");
 
     public static void main(String[] args) {
         int status = run(args);
@@ -41,8 +41,12 @@ public class Main {
 
         try {
             switch (command) {
-                case "simulate" -> new SimulationFacade().executeSimulation(
-                        rest[0], rest.length > 1 ? rest[1] : "output.vcd");
+                case "simulate" -> {
+                    return new SimulationFacade().executeSimulation(
+                            rest[0], rest.length > 1 ? rest[1] : "output.vcd").getFailedAssertionCount() == 0 ? 0 : 1;
+                }
+                case "fault-coverage" -> System.out.println(SERVICE.faultCoverage(
+                        java.nio.file.Files.readString(java.nio.file.Path.of(rest[0]))).describe());
                 case "validate" -> validate(rest[0]);
                 case "analyze" -> analyze(rest[0]);
                 case "truth-table" -> truthTable(rest);
@@ -68,7 +72,7 @@ public class Main {
     private static boolean hasValidArguments(String command, int count) {
         return switch (command) {
             case "simulate" -> count == 1 || count == 2;
-            case "validate", "analyze" -> count == 1;
+            case "validate", "analyze", "fault-coverage" -> count == 1;
             case "check", "guide", "help" -> count == 0;
             case "truth-table" -> count == 1 || count == 3;
             default -> count == 2 || count == 4;
@@ -87,6 +91,7 @@ public class Main {
         var result = SERVICE.analyze(netlist);
         System.out.println("CRITICAL_PATH_DELAY_NS=" + result.getCriticalPathDelay());
         System.out.println("MAX_CLOCK_FREQUENCY_MHZ=" + result.getMaxClockFrequencyMHz());
+        System.out.println("CRITICAL_PATH=" + String.join(" > ", result.getCriticalPath()));
         System.out.println("RESOURCES=" + SERVICE.resources(netlist).describe());
     }
 
@@ -159,6 +164,7 @@ public class Main {
         out.println("  java simulator.Main analyze <netlist>");
         out.println("  java simulator.Main truth-table <netlist> [<inputs> <outputs>]");
         out.println("  java simulator.Main equivalent <first> <second> [<inputs> <outputs>]");
+        out.println("  java simulator.Main fault-coverage <netlist>");
         out.println("  java simulator.Main check");
         out.println("  java simulator.Main guide");
         out.println("  java simulator.Main help");

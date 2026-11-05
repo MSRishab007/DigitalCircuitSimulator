@@ -2,6 +2,7 @@ package simulator.application;
 
 import simulator.engine.CircuitEquivalenceChecker;
 import simulator.engine.CircuitPorts;
+import simulator.engine.FaultCoverageAnalyzer;
 import simulator.engine.StaticTimingAnalyzer;
 import simulator.engine.TimingAnalysisResult;
 import simulator.engine.TruthTable;
@@ -49,6 +50,14 @@ public final class SimulationApplicationService {
 
     public CircuitResources resources(String netlist) {
         return new CircuitResources(parse(netlist));
+    }
+
+    public FaultCoverageAnalyzer.Result faultCoverage(String netlist) {
+        ValidationResult validation = validate(netlist);
+        if (!validation.isValid()) {
+            throw new IllegalStateException(validation.getMessage());
+        }
+        return new FaultCoverageAnalyzer().analyze(netlist);
     }
 
     public TruthTable truthTable(String netlist, List<String> inputs,

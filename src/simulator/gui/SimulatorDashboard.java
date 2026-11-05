@@ -10,6 +10,7 @@ import simulator.engine.CircuitPorts;
 import simulator.engine.TimingAnalysisResult;
 import simulator.engine.TruthTable;
 import simulator.engine.SimulationContext;
+import simulator.engine.SimulationAssertion;
 import simulator.engine.SimulationDebugger;
 import simulator.io.VcdLogger;
 import simulator.parser.NetlistParser;
@@ -109,6 +110,8 @@ public class SimulatorDashboard extends JFrame {
     private final ColorButton nextEdgeBtn = new ColorButton("Next change", Theme.SLATE);
     private final javax.swing.Timer schematicTimer = new javax.swing.Timer(400, e -> refreshSchematic());
     private JPanel schematicTab;
+    private final JCheckBox collapseMacrosBox = new JCheckBox("Collapse macros");
+    private final JCheckBox criticalPathBox = new JCheckBox("Show critical path");
     private String simulatedNetlist;
     private boolean updatingSlider;
     private volatile String resourceSummary = "";
@@ -511,7 +514,14 @@ public class SimulatorDashboard extends JFrame {
         controls.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE),
                 new EmptyBorder(6, 10, 6, 10)));
-        controls.add(Ui.row(6, zoomIn, zoomOut, fit, saveImage), BorderLayout.WEST);
+        for (JCheckBox box : List.of(collapseMacrosBox, criticalPathBox)) {
+            box.setOpaque(false);
+            box.setFocusable(false);
+            box.setFont(Theme.ui(Font.PLAIN, 12f));
+        }
+        collapseMacrosBox.addActionListener(e -> refreshSchematic());
+        criticalPathBox.addActionListener(e -> schematicPanel.setShowCriticalPath(criticalPathBox.isSelected()));
+        controls.add(Ui.row(6, zoomIn, zoomOut, fit, saveImage, collapseMacrosBox, criticalPathBox), BorderLayout.WEST);
 
         JScrollPane scroll = Ui.scroll(schematicPanel);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
@@ -575,7 +585,7 @@ public class SimulatorDashboard extends JFrame {
             try {
                 NetlistParser parser = new NetlistParser(new SimulationContext());
                 parser.parseString(netlist);
-                schematicPanel.setCircuit(SchematicLayout.build(parser));
+                schematicPanel.setCircuit(SchematicLayout.build(parser, collapseMacrosBox.isSelected()));
             } catch (RuntimeException ex) {
                 schematicPanel.showMessage("Fix the netlist to draw its schematic. " + ex.getMessage());
             }
@@ -641,6 +651,8 @@ public class SimulatorDashboard extends JFrame {
         ColorButton validateButton = new ColorButton("Validate", Theme.TEAL);
         ColorButton timingButton = new ColorButton("Analyze timing", Theme.BLUE);
         ColorButton truthTableButton = new ColorButton("Generate truth table", Theme.BLUE);
+        ColorButton coverageButton = new ColorButton("Fault coverage", Theme.BLUE);
+        coverageButton.setToolTipText("Check which stuck-at faults your stimuli would catch");
         ColorButton detectButton = new ColorButton("Detect wires", Theme.SLATE);
         detectButton.setToolTipText("Fill in the input and output wires from the current netlist");
 
@@ -651,7 +663,7 @@ public class SimulatorDashboard extends JFrame {
         JPanel analysisActions = new JPanel(new BorderLayout());
         analysisActions.setOpaque(false);
         analysisActions.setBorder(new EmptyBorder(10, 0, 0, 0));
-        analysisActions.add(Ui.row(6, detectButton, truthTableButton, timingButton, validateButton),
+        analysisActions.add(Ui.row(6, detectButton, truthTableButton, timingButton, coverageButton, validateButton),
                 BorderLayout.WEST);
 
         JPanel controls = new JPanel(new BorderLayout());
@@ -722,11 +734,21 @@ public class SimulatorDashboard extends JFrame {
                 String frequency = result.getCriticalPathDelay() == 0
                         ? "not applicable (no gate delay on any path)"
                         : String.format("%.2f MHz", result.getMaxClockFrequencyMHz());
+                String path = result.getCriticalPath().isEmpty() ? "none"
+                        : String.join(" > ", result.getCriticalPath());
                 showText("Critical path delay: " + result.getCriticalPathDelay() + " ns\n"
+                        + "Critical path: " + path + "\n"
                         + "Maximum clock frequency: " + frequency + "\n"
                         + "Resources: " + resourceSummary, Theme.TEXT);
                 setActivity("Timing analysis finished", Theme.GREEN);
             }, "Analysis failed");
+        });
+        coverageButton.addActionListener(event -> {
+            String netlist = editorArea.getText();
+            runTask("Checking fault coverage...", () -> service.faultCoverage(netlist), result -> {
+                showText(result.describe(), Theme.TEXT);
+                setActivity("Fault coverage finished", Theme.GREEN);
+            }, "Fault coverage failed");
         });
         truthTableButton.addActionListener(event -> {
             String netlist = editorArea.getText();
@@ -1116,6 +1138,9 @@ public class SimulatorDashboard extends JFrame {
                             result.getSimulatedTime()));
                     log(String.format("%-25s %d ns", "Critical Path Delay:",
                             result.getCriticalPathDelay()));
+                    if (!result.getCriticalPath().isEmpty()) {
+                        log(String.format("%-25s %s", "Critical Path:", String.join(" > ", result.getCriticalPath())));
+                    }
                     log(String.format("%-25s %d events", "Total Events Processed:",
                             result.getEventsProcessed()));
                     log(String.format("%-25s %d", "Peak Queue Depth:",
@@ -1124,10 +1149,14 @@ public class SimulatorDashboard extends JFrame {
                             result.getComputeTimeMillis()));
                     log(String.format("%-25s %s", "Waveform Exported:", waveformPath));
                     log("===============================================");
+                    logAssertions(result.getAssertions());
                     if (result.getEventsProcessed() == 0) {
                         log("[!] NO SIGNAL ACTIVITY: this netlist has no STIMULUS lines or CLOCK,");
                         log("    so its inputs are never driven and every wire stays X.");
                         setActivity("Nothing changed. Add STIMULUS lines or a CLOCK.", Theme.ORANGE);
+                    } else if (result.getFailedAssertionCount() > 0) {
+                        setActivity(result.getFailedAssertionCount() + " of " + result.getAssertions().size()
+                                + " assertions failed. See the telemetry log.", Theme.ERROR);
                     } else {
                         setActivity("Simulation finished", Theme.GREEN);
                     }
@@ -1139,6 +1168,13 @@ public class SimulatorDashboard extends JFrame {
                 }
             }
         }.execute();
+    }
+
+    private void logAssertions(List<SimulationAssertion> assertions) {
+        if (!assertions.isEmpty()) {
+            log("Assertions:");
+            assertions.forEach(assertion -> log("  " + assertion.describe()));
+        }
     }
 
     private void prepareDebugSession() {
@@ -1174,6 +1210,7 @@ public class SimulatorDashboard extends JFrame {
             }
             if (!debugger.step()) {
                 log("Simulation complete.");
+                logAssertions(debugContext.getAssertions());
                 stepBtn.setEnabled(false);
                 setActivity("Simulation complete. Press Reset to step again.", Theme.GREEN);
             } else {

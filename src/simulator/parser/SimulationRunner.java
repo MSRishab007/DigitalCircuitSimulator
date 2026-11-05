@@ -2,12 +2,14 @@ package simulator.parser;
 
 import simulator.components.Clock;
 import simulator.core.DigitalComponent;
+import simulator.engine.SimulationAssertion;
 import simulator.engine.SimulationContext;
 import simulator.engine.StaticTimingAnalyzer;
 import simulator.engine.TimingAnalysisResult;
 import simulator.io.VcdLogger;
 
 import java.io.IOException;
+import java.util.List;
 
 public final class SimulationRunner {
     public SimulationResult runFile(String netlistFilePath, String outputWaveformPath) throws IOException {
@@ -48,7 +50,6 @@ public final class SimulationRunner {
 
         var engine = context.getEventEngine();
         context.runSimulation();
-        context.verifyAssertionsCompleted();
 
         if (outputWaveformPath != null) {
             try {
@@ -66,7 +67,9 @@ public final class SimulationRunner {
                 engine.getTotalEventsProcessed(),
                 engine.getPeakQueueDepth(),
                 engine.getComputeTimeMillis(),
-                logger.toVcd());
+                logger.toVcd(),
+                timing.getCriticalPath(),
+                context.getAssertions());
     }
 
     public static final class SimulationResult {
@@ -78,10 +81,13 @@ public final class SimulationRunner {
         private final int peakQueueDepth;
         private final long computeTimeMillis;
         private final String waveform;
+        private final List<String> criticalPath;
+        private final List<SimulationAssertion> assertions;
 
         private SimulationResult(int wireCount, int componentCount, int criticalPathDelay,
                                  long simulatedTime, long eventsProcessed, int peakQueueDepth,
-                                 long computeTimeMillis, String waveform) {
+                                 long computeTimeMillis, String waveform,
+                                 List<String> criticalPath, List<SimulationAssertion> assertions) {
             this.wireCount = wireCount;
             this.componentCount = componentCount;
             this.criticalPathDelay = criticalPathDelay;
@@ -90,6 +96,8 @@ public final class SimulationRunner {
             this.peakQueueDepth = peakQueueDepth;
             this.computeTimeMillis = computeTimeMillis;
             this.waveform = waveform;
+            this.criticalPath = criticalPath;
+            this.assertions = assertions;
         }
 
         public int getWireCount() { return wireCount; }
@@ -100,6 +108,16 @@ public final class SimulationRunner {
         public int getPeakQueueDepth() { return peakQueueDepth; }
         public long getComputeTimeMillis() { return computeTimeMillis; }
         public String getWaveform() { return waveform; }
+        public List<String> getCriticalPath() { return criticalPath; }
+        public List<SimulationAssertion> getAssertions() { return assertions; }
+
+        public int getFailedAssertionCount() {
+            int failed = 0;
+            for (SimulationAssertion assertion : assertions) {
+                failed += assertion.hasPassed() ? 0 : 1;
+            }
+            return failed;
+        }
 
         public String toJson() {
             return "{\"success\":true,\"wireCount\":" + wireCount
@@ -109,7 +127,26 @@ public final class SimulationRunner {
                     + ",\"eventsProcessed\":" + eventsProcessed
                     + ",\"peakQueueDepth\":" + peakQueueDepth
                     + ",\"computeTimeMillis\":" + computeTimeMillis
-                    + ",\"waveform\":\"" + escapeJson(waveform) + "\"}";
+                    + ",\"waveform\":\"" + escapeJson(waveform) + "\""
+                    + ",\"criticalPath\":" + stringsJson(criticalPath)
+                    + ",\"failedAssertions\":" + getFailedAssertionCount()
+                    + ",\"assertions\":" + assertionsJson(assertions) + "}";
+        }
+
+        private static String stringsJson(List<String> values) {
+            StringBuilder json = new StringBuilder("[");
+            for (int i = 0; i < values.size(); i++) {
+                json.append(i == 0 ? "\"" : ",\"").append(escapeJson(values.get(i))).append('"');
+            }
+            return json.append(']').toString();
+        }
+
+        public static String assertionsJson(List<SimulationAssertion> assertions) {
+            List<String> lines = new java.util.ArrayList<>();
+            for (SimulationAssertion assertion : assertions) {
+                lines.add(assertion.describe());
+            }
+            return stringsJson(lines);
         }
 
         private static String escapeJson(String value) {

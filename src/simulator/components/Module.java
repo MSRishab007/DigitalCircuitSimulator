@@ -18,6 +18,7 @@ public class Module extends DigitalComponent {
     private final List<InputPin> inputBindings;
     private final Map<InputPin, Boolean> boundInputs;
     private final Map<Integer, Wire> boundOutputs;
+    private String typeName = "MODULE";
 
     public Module(String id, int numInputs, int numOutputs) {
         super(id, numInputs, numOutputs);
@@ -37,6 +38,14 @@ public class Module extends DigitalComponent {
         for (DigitalComponent component : internalComponents) {
             component.setSimulationContext(simulationContext);
         }
+    }
+
+    public void setTypeName(String typeName) {
+        this.typeName = typeName;
+    }
+
+    public String getTypeName() {
+        return typeName;
     }
 
     public void addSubComponent(DigitalComponent c) {

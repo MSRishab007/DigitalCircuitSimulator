@@ -7,6 +7,8 @@ import simulator.application.UserGuide;
 import simulator.components.Clock;
 import simulator.core.DigitalComponent;
 import simulator.engine.CircuitEquivalenceChecker;
+import simulator.engine.FaultCoverageAnalyzer;
+import simulator.engine.SimulationAssertion;
 import simulator.engine.SimulationContext;
 import simulator.engine.SimulationDebugger;
 import simulator.engine.TimingAnalysisResult;
@@ -51,8 +53,23 @@ public class WasmBridge {
                 TimingAnalysisResult result = SERVICE.analyze(netlist);
                 return "{\"success\":true,\"criticalPathDelay\":"
                         + result.getCriticalPathDelay() + ",\"maxClockFrequencyMHz\":"
-                        + result.getMaxClockFrequencyMHz() + ",\"resources\":\""
+                        + result.getMaxClockFrequencyMHz() + ",\"criticalPath\":"
+                        + listJson(result.getCriticalPath()) + ",\"resources\":\""
                         + escapeJson(SERVICE.resources(netlist).describe()) + "\"}";
+            } catch (Exception e) {
+                return errorJson(e);
+            }
+        }
+
+    @JSExport
+    public static String faultCoverage(String netlist) {
+            try {
+                FaultCoverageAnalyzer.Result result = SERVICE.faultCoverage(netlist);
+                return "{\"success\":true,\"total\":" + result.getTotalFaults()
+                        + ",\"detected\":" + result.getDetectedFaults()
+                        + ",\"percent\":" + result.getCoveragePercent()
+                        + ",\"undetected\":" + listJson(result.getUndetected())
+                        + ",\"report\":\"" + escapeJson(result.describe()) + "\"}";
             } catch (Exception e) {
                 return errorJson(e);
             }
@@ -77,6 +94,7 @@ public class WasmBridge {
 
     private static SimulationDebugger debugger;
     private static VcdLogger debugLogger;
+    private static SimulationContext debugContext;
 
     /** Starts a step-through session at time 0, replacing any earlier session. */
     @JSExport
@@ -100,6 +118,7 @@ public class WasmBridge {
                     }
                 }
                 debugLogger = logger;
+                debugContext = context;
                 debugger = new SimulationDebugger(context);
                 return debugJson(true);
             } catch (Exception e) {
@@ -126,15 +145,35 @@ public class WasmBridge {
             return "{\"success\":true,\"stepped\":" + stepped
                     + ",\"time\":" + debugger.getCurrentTime()
                     + ",\"pending\":" + debugger.getPendingEventCount()
+                    + ",\"assertions\":" + assertionLines(stepped)
                     + ",\"waveform\":\"" + escapeJson(debugLogger.toVcd()) + "\"}";
+        }
+
+    private static String assertionLines(boolean stepped) {
+            List<String> lines = new java.util.ArrayList<>();
+            if (!stepped) {
+                for (SimulationAssertion assertion : debugContext.getAssertions()) {
+                    lines.add(assertion.describe());
+                }
+            }
+            return listJson(lines);
         }
 
     @JSExport
     public static String schematicLayout(String netlist) {
+            return schematic(netlist, false);
+        }
+
+    @JSExport
+    public static String schematicLayoutCollapsed(String netlist) {
+            return schematic(netlist, true);
+        }
+
+    private static String schematic(String netlist, boolean collapseMacros) {
             try {
                 NetlistParser parser = new NetlistParser(new SimulationContext());
                 parser.parseString(netlist);
-                return schematicJson(SchematicLayout.build(parser));
+                return schematicJson(SchematicLayout.build(parser, collapseMacros));
             } catch (Exception e) {
                 return errorJson(e);
             }
@@ -144,6 +183,7 @@ public class WasmBridge {
             StringBuilder json = new StringBuilder("{\"success\":true,\"width\":").append(layout.getWidth())
                     .append(",\"height\":").append(layout.getHeight())
                     .append(",\"unusedWires\":").append(layout.getUnusedWires())
+                    .append(",\"criticalPath\":").append(listJson(layout.getCriticalPath()))
                     .append(",\"nodes\":[");
             String separator = "";
             for (SchematicLayout.Node node : layout.getNodes()) {
@@ -152,9 +192,15 @@ public class WasmBridge {
                         .append("\",\"detail\":\"").append(escapeJson(node.detail))
                         .append("\",\"x\":").append(node.x).append(",\"y\":").append(node.y)
                         .append(",\"width\":").append(node.width).append(",\"height\":").append(node.height)
+                        .append(",\"typeName\":\"").append(escapeJson(node.typeName))
+                        .append("\",\"critical\":").append(node.onCriticalPath)
                         .append(",\"inputs\":[");
                 for (int pin = 0; pin < node.inputCount; pin++) {
                     json.append(pin == 0 ? "" : ",").append(node.inputY(pin));
+                }
+                json.append("],\"outputs\":[");
+                for (int pin = 0; pin < node.outputCount; pin++) {
+                    json.append(pin == 0 ? "" : ",").append(node.outputY(pin));
                 }
                 json.append("]}");
                 separator = ",";
@@ -164,7 +210,8 @@ public class WasmBridge {
             java.util.Set<String> wires = new java.util.LinkedHashSet<>();
             for (SchematicLayout.Net net : layout.getNets()) {
                 wires.add(net.wire);
-                json.append(separator).append("{\"wire\":\"").append(escapeJson(net.wire)).append("\",\"segments\":[");
+                json.append(separator).append("{\"wire\":\"").append(escapeJson(net.wire))
+                        .append("\",\"critical\":").append(net.onCriticalPath).append(",\"segments\":[");
                 String inner = "";
                 for (SchematicLayout.Segment s : net.segments) {
                     json.append(inner).append('[').append(s.x1).append(',').append(s.y1).append(',')

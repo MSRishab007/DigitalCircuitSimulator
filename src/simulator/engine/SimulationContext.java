@@ -1,6 +1,7 @@
 package simulator.engine;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -62,9 +63,7 @@ public final class SimulationContext {
         return eventEngine.stepSimulation();
     }
 
-    public void verifyAssertionsCompleted() {
-        for (SimulationAssertion assertion : assertions) {
-            assertion.verifyCompleted(eventEngine.getMaxSimulationTime());
-        }
+    public List<SimulationAssertion> getAssertions() {
+        return Collections.unmodifiableList(assertions);
     }
 }

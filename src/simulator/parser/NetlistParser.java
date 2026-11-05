@@ -2,6 +2,7 @@ package simulator.parser;
 
 import simulator.components.BooleanExpression;
 import simulator.components.FunctionalBlock;
+import simulator.components.Module;
 import simulator.core.DigitalComponent;
 import simulator.core.Wire;
 import simulator.engine.SimulationContext;
@@ -20,6 +21,7 @@ public class NetlistParser {
     private final Map<String, Wire> wires = new LinkedHashMap<>();
     private final List<DigitalComponent> components = new ArrayList<>();
     private final Map<String, MacroDef> macros = new HashMap<>();
+    private final List<Module> modules = new ArrayList<>();
 
     public NetlistParser() {
         this(SimulationContext.defaultContext());
@@ -56,6 +58,7 @@ public void parseString(String content) {
 private void parseReader(BufferedReader reader) throws IOException {
     wires.clear();
     components.clear();
+    modules.clear();
     macros.clear();
     simulationContext.reset();
     loadStandardLibrary();
@@ -137,13 +140,13 @@ private void parseReader(BufferedReader reader) throws IOException {
                 simulationContext.getEventEngine().scheduleEvent(new simulator.engine.SignalEvent(time, target, state));
             }
             else if (macros.containsKey(command)) {
-                instantiateMacro(macros.get(command), tokens, "", new HashMap<>(), 0);
+                instantiateMacro(macros.get(command), tokens, "", new HashMap<>(), 0, null);
             } 
             else {
                 if (tokens.length < 2) {
                     throw new IllegalArgumentException("Unknown command: " + command);
                 }
-                instantiateGate(tokens, "", new HashMap<>());
+                instantiateGate(tokens, "", new HashMap<>(), null);
             }
         } catch (Exception e) {
             throw new RuntimeException("Syntax error at line " + lineNumber + ": " + line
@@ -180,7 +183,7 @@ private void parseReader(BufferedReader reader) throws IOException {
     }
 
     private void instantiateMacro(MacroDef macro, String[] args, String idPrefix,
-                                  Map<String, String> outerWires, int depth) {
+                                  Map<String, String> outerWires, int depth, Module parent) {
         if (depth > MAX_MACRO_DEPTH) {
             throw new IllegalArgumentException("Macro " + macro.name + " uses itself");
         }
@@ -189,6 +192,14 @@ private void parseReader(BufferedReader reader) throws IOException {
                     macro.ports.size() + " ports");
         }
         String instanceId = idPrefix + args[1];
+        Module module = new Module(instanceId, 0, 0);
+        module.setTypeName(macro.name);
+        module.setSimulationContext(simulationContext);
+        if (parent == null) {
+            modules.add(module);
+        } else {
+            parent.addSubComponent(module);
+        }
         Map<String, String> wireMap = new HashMap<>();
 
         for (int i = 0; i < macro.ports.size(); i++) {
@@ -206,16 +217,16 @@ private void parseReader(BufferedReader reader) throws IOException {
                 wires.put(localWire, new Wire(localWire));
                 wireMap.put(tokens[1], localWire);
             } else if (macros.containsKey(command)) {
-                instantiateMacro(macros.get(command), tokens, instanceId + "_", wireMap, depth + 1);
+                instantiateMacro(macros.get(command), tokens, instanceId + "_", wireMap, depth + 1, module);
             } else {
-                instantiateGate(tokens, instanceId + "_", wireMap);
+                instantiateGate(tokens, instanceId + "_", wireMap, module);
             }
         }
     }
 
-    private void instantiateGate(String[] tokens, String idPrefix, Map<String, String> wireMap) {
+    private void instantiateGate(String[] tokens, String idPrefix, Map<String, String> wireMap, Module owner) {
         if (tokens[0].equalsIgnoreCase("FUNC")) {
-            instantiateFunction(tokens, idPrefix, wireMap);
+            instantiateFunction(tokens, idPrefix, wireMap, owner);
             return;
         }
         if (tokens.length < 4) {
@@ -235,6 +246,9 @@ private void parseReader(BufferedReader reader) throws IOException {
                     " inputs but received " + inputCount);
         }
         components.add(component);
+        if (owner != null) {
+            owner.addSubComponent(component);
+        }
 
         String rawOut = tokens[tokens.length - 1];
         component.getOutputPin(0).connect(getWire(wireMap.getOrDefault(rawOut, rawOut)));
@@ -245,7 +259,7 @@ private void parseReader(BufferedReader reader) throws IOException {
         }
     }
 
-    private void instantiateFunction(String[] tokens, String idPrefix, Map<String, String> wireMap) {
+    private void instantiateFunction(String[] tokens, String idPrefix, Map<String, String> wireMap, Module owner) {
         int equals = Arrays.asList(tokens).indexOf("=");
         if (equals < 4 || equals == tokens.length - 1) {
             throw new IllegalArgumentException("Function syntax: FUNC ID DELAY [INPUTS...] OUTPUT = EXPRESSION");
@@ -261,6 +275,9 @@ private void parseReader(BufferedReader reader) throws IOException {
         FunctionalBlock block = new FunctionalBlock(idPrefix + tokens[1], delay, inputNames.size(), expression);
         block.setSimulationContext(simulationContext);
         components.add(block);
+        if (owner != null) {
+            owner.addSubComponent(block);
+        }
 
         String rawOut = tokens[equals - 1];
         block.getOutputPin(0).connect(getWire(wireMap.getOrDefault(rawOut, rawOut)));
@@ -276,6 +293,7 @@ private void parseReader(BufferedReader reader) throws IOException {
     }
     public List<Wire> getAllWires() { return new ArrayList<>(wires.values()); }
     public List<DigitalComponent> getComponents() { return components; }
+    public List<Module> getModules() { return modules; }
     public SimulationContext getSimulationContext() { return simulationContext; }
     private static simulator.core.VoltageState parseState(String token, String kind) {
         if (token.equals("1")) return simulator.core.VoltageState.HIGH;

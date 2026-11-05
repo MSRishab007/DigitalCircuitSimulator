@@ -17,6 +17,10 @@ public class SequentialComponent extends DigitalComponent {
         this.currentState = initialState;
     }
 
+    public int getPropagationDelay() {
+        return propagationDelay;
+    }
+
     public void clockPulse() {
         VoltageState dataInput = inputPins.get(0).getCurrentState();
         

@@ -2,6 +2,7 @@ package simulator.schematic;
 
 import simulator.components.AndGate;
 import simulator.components.Clock;
+import simulator.components.Module;
 import simulator.components.LogicGate;
 import simulator.components.NandGate;
 import simulator.components.NorGate;
@@ -18,6 +19,7 @@ import simulator.core.OutputPin;
 import simulator.core.SignalObserver;
 import simulator.core.VoltageState;
 import simulator.core.Wire;
+import simulator.engine.StaticTimingAnalyzer;
 import simulator.parser.NetlistParser;
 
 import java.util.ArrayList;
@@ -37,7 +39,7 @@ import java.util.Set;
  * Wires that loop back, such as flip-flop feedback, run along lanes underneath the circuit.
  */
 public final class SchematicLayout {
-    public enum Kind { INPUT, OUTPUT, AND, OR, NOT, NAND, NOR, XOR, XNOR, FUNC, BUFFER, DFF, CLOCK, BUS, OTHER, ROUTE }
+    public enum Kind { INPUT, OUTPUT, AND, OR, NOT, NAND, NOR, XOR, XNOR, FUNC, MODULE, BUFFER, DFF, CLOCK, BUS, OTHER, ROUTE }
 
     private static final int MARGIN = 24;
     private static final int NODE_GAP = 22;
@@ -62,8 +64,12 @@ public final class SchematicLayout {
     public static final class Node {
         public final Kind kind;
         public final String id;
-        public final String detail;
-        public final int inputCount;
+        public String detail;
+        public int inputCount;
+        public int outputCount = 1;
+        public final List<String> members = new ArrayList<>();
+        public String typeName = "";
+        public boolean onCriticalPath;
         public final List<Node> previous = new ArrayList<>();
         public final List<Node> next = new ArrayList<>();
         int layer;
@@ -81,6 +87,13 @@ public final class SchematicLayout {
             this.inputCount = inputCount;
             this.width = width;
             this.height = height;
+        }
+
+        public int outputY(int pin) {
+            if (outputCount <= 1) {
+                return y;
+            }
+            return y + (int) Math.round((pin - (outputCount - 1) / 2.0) * PIN_SPACING);
         }
 
         public int inputY(int pin) {
@@ -124,10 +137,16 @@ public final class SchematicLayout {
         final Map<Integer, Node> routeByLayer = new HashMap<>();
         boolean labelled;
         public Point labelAt;
+        public boolean onCriticalPath;
+        int outputPin;
 
         Net(String wire, Node source) {
             this.wire = wire;
             this.source = source;
+        }
+
+        int yAt(Node node) {
+            return node == source ? source.outputY(outputPin) : node.y;
         }
     }
 
@@ -154,6 +173,7 @@ public final class SchematicLayout {
     private final Map<String, String> drivenBy = new HashMap<>();
     private final Map<String, List<String>> feeds = new HashMap<>();
     private final List<List<Node>> layers = new ArrayList<>();
+    private final List<String> criticalPath = new ArrayList<>();
     private int unusedWires;
     private int width;
     private int height;
@@ -161,13 +181,18 @@ public final class SchematicLayout {
     private SchematicLayout() { }
 
     public static SchematicLayout build(NetlistParser parser) {
+        return build(parser, false);
+    }
+
+    public static SchematicLayout build(NetlistParser parser, boolean collapseModules) {
         SchematicLayout layout = new SchematicLayout();
-        layout.createGraph(parser);
+        layout.createGraph(parser, collapseModules);
         layout.assignLayers();
         layout.addRoutes();
         layout.orderLayers();
         layout.placeVertically();
         layout.placeHorizontallyAndRoute();
+        layout.markCriticalPath(parser);
         return layout;
     }
 
@@ -176,60 +201,138 @@ public final class SchematicLayout {
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public int getUnusedWires() { return unusedWires; }
+    public List<String> getCriticalPath() { return Collections.unmodifiableList(criticalPath); }
     public String getFault(String wire) { return faults.get(wire); }
     public String getDriver(String wire) { return drivenBy.get(wire); }
     public List<String> getFeeds(String wire) { return feeds.getOrDefault(wire, List.of()); }
 
-    private void createGraph(NetlistParser parser) {
+    private void markCriticalPath(NetlistParser parser) {
+        try {
+            criticalPath.addAll(new StaticTimingAnalyzer().analyze(parser.getComponents()).getCriticalPath());
+        } catch (IllegalStateException loop) {
+            return;
+        }
+        for (Node node : nodes) {
+            for (String member : node.members) {
+                node.onCriticalPath |= criticalPath.contains(member);
+            }
+        }
+        for (Net net : nets) {
+            for (Sink sink : net.sinks) {
+                for (int i = 0; i + 1 < criticalPath.size(); i++) {
+                    net.onCriticalPath |= net.source.members.contains(criticalPath.get(i))
+                            && sink.node.members.contains(criticalPath.get(i + 1));
+                }
+            }
+        }
+    }
+
+    private static void collectMembers(Module module, Map<DigitalComponent, Node> byComponent, Node node) {
+        for (DigitalComponent child : module.getSubComponents()) {
+            if (child instanceof Module) {
+                collectMembers((Module) child, byComponent, node);
+            } else {
+                byComponent.put(child, node);
+                node.members.add(child.getComponentId());
+            }
+        }
+    }
+
+    private void createGraph(NetlistParser parser, boolean collapseModules) {
         Map<DigitalComponent, Node> byComponent = new IdentityHashMap<>();
+        if (collapseModules) {
+            for (Module module : parser.getModules()) {
+                Node node = new Node(Kind.MODULE, module.getComponentId(), "Macro " + module.getTypeName(), 0, 0, 0);
+                node.typeName = module.getTypeName();
+                collectMembers(module, byComponent, node);
+                nodes.add(node);
+            }
+        }
         Map<Wire, List<Node>> drivers = new IdentityHashMap<>();
         for (DigitalComponent component : parser.getComponents()) {
-            Node node = componentNode(component);
-            byComponent.put(component, node);
-            nodes.add(node);
+            Node node = byComponent.get(component);
+            if (node == null) {
+                node = componentNode(component);
+                node.members.add(component.getComponentId());
+                byComponent.put(component, node);
+                nodes.add(node);
+            }
             for (OutputPin pin : component.getOutputPins()) {
                 if (pin.getConnectedWire() != null) {
-                    drivers.computeIfAbsent(pin.getConnectedWire(), key -> new ArrayList<>()).add(node);
+                    List<Node> wireDrivers = drivers.computeIfAbsent(pin.getConnectedWire(), key -> new ArrayList<>());
+                    if (!wireDrivers.contains(node)) {
+                        wireDrivers.add(node);
+                    }
                 }
             }
         }
 
+        Map<Node, Integer> moduleInputs = new IdentityHashMap<>();
+        Map<Node, Integer> moduleOutputs = new IdentityHashMap<>();
         for (Wire wire : parser.getAllWires()) {
             String name = wire.getWireId();
             if (wire.getStuckAtState() != null) {
                 faults.put(name, wire.getStuckAtState() == VoltageState.HIGH ? "stuck at 1" : "stuck at 0");
             }
+            List<Node> wireDrivers = drivers.getOrDefault(wire, List.of());
             List<Sink> sinks = new ArrayList<>();
+            Map<Node, Integer> modulePin = new IdentityHashMap<>();
             for (SignalObserver observer : wire.getObservers()) {
                 if (observer instanceof InputPin) {
                     InputPin pin = (InputPin) observer;
                     DigitalComponent parent = pin.getParentComponent();
                     Node target = byComponent.get(parent);
-                    if (target != null) {
-                        sinks.add(new Sink(target, parent.getInputPins().indexOf(pin)));
-                        feeds.computeIfAbsent(name, key -> new ArrayList<>()).add(target.id);
+                    if (target == null) {
+                        continue;
                     }
+                    if (target.kind == Kind.MODULE) {
+                        if (wireDrivers.size() == 1 && wireDrivers.get(0) == target) {
+                            feeds.computeIfAbsent(name, key -> new ArrayList<>()).add(parent.getComponentId());
+                            continue;
+                        }
+                        if (!modulePin.containsKey(target)) {
+                            int index = moduleInputs.getOrDefault(target, 0);
+                            moduleInputs.put(target, index + 1);
+                            modulePin.put(target, index);
+                            sinks.add(new Sink(target, index));
+                        }
+                    } else {
+                        sinks.add(new Sink(target, parent.getInputPins().indexOf(pin)));
+                    }
+                    feeds.computeIfAbsent(name, key -> new ArrayList<>()).add(parent.getComponentId());
                 }
             }
-            List<Node> wireDrivers = drivers.getOrDefault(wire, List.of());
+            boolean internal = wireDrivers.size() == 1 && wireDrivers.get(0).kind == Kind.MODULE && sinks.isEmpty()
+                    && !wire.getObservers().isEmpty() && hasPinObserver(wire);
+            if (internal) {
+                continue;
+            }
             if (wireDrivers.isEmpty() && sinks.isEmpty()) {
                 unusedWires++;
                 continue;
             }
             Node source;
+            int outputPin = 0;
             if (wireDrivers.isEmpty()) {
                 source = new Node(Kind.INPUT, name, "Input", 0, portWidth(name, wire), 24);
                 nodes.add(source);
             } else if (wireDrivers.size() == 1) {
                 source = wireDrivers.get(0);
-                drivenBy.put(name, source.id);
+                drivenBy.put(name, driverName(wire, parser, source));
+                if (source.kind == Kind.MODULE) {
+                    outputPin = moduleOutputs.getOrDefault(source, 0);
+                    moduleOutputs.put(source, outputPin + 1);
+                }
             } else {
-                // Several drivers share this wire, so they meet at a junction before it fans out.
                 source = new Node(Kind.BUS, name, "Shared wire", wireDrivers.size(), 10, 10);
                 nodes.add(source);
                 List<String> ids = new ArrayList<>();
                 for (Node driver : wireDrivers) {
                     Net branch = new Net(name, driver);
+                    if (driver.kind == Kind.MODULE) {
+                        branch.outputPin = moduleOutputs.getOrDefault(driver, 0);
+                        moduleOutputs.put(driver, branch.outputPin + 1);
+                    }
                     branch.sinks.add(new Sink(source, 0));
                     nets.add(branch);
                     ids.add(driver.id);
@@ -242,11 +345,41 @@ public final class SchematicLayout {
                 sinks.add(new Sink(output, 0));
             }
             Net net = new Net(name, source);
+            net.outputPin = outputPin;
             net.sinks.addAll(sinks);
             net.labelled = source.kind != Kind.INPUT
                     && !sinks.stream().allMatch(sink -> sink.node.kind == Kind.OUTPUT);
             nets.add(net);
         }
+        for (Node node : nodes) {
+            if (node.kind == Kind.MODULE) {
+                node.inputCount = moduleInputs.getOrDefault(node, 0);
+                node.outputCount = Math.max(1, moduleOutputs.getOrDefault(node, 0));
+                node.width = Math.max(96, Math.max(node.typeName.length() * 8, node.id.length() * LABEL_CHAR_WIDTH) + 24);
+                node.height = Math.max(node.inputCount, node.outputCount) * PIN_SPACING + 36;
+                node.detail = "Macro " + node.typeName + " containing " + String.join(", ", node.members);
+            }
+        }
+    }
+
+    private static boolean hasPinObserver(Wire wire) {
+        for (SignalObserver observer : wire.getObservers()) {
+            if (observer instanceof InputPin) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String driverName(Wire wire, NetlistParser parser, Node source) {
+        for (DigitalComponent component : parser.getComponents()) {
+            for (OutputPin pin : component.getOutputPins()) {
+                if (pin.getConnectedWire() == wire) {
+                    return component.getComponentId();
+                }
+            }
+        }
+        return source.id;
     }
 
     private static int portWidth(String name, Wire wire) {
@@ -532,11 +665,11 @@ public final class SchematicLayout {
                     int channel = sink.node.layer - 1;
                     Node from = net.routeByLayer.get(channel);
                     ChannelEntry entry = entry(channels, channel, net);
-                    entry.sourceY = from.y;
+                    entry.sourceY = net.yAt(from);
                     entry.targetYs.add(sink.node.inputY(sink.pin));
                     for (int c = net.source.layer; c < channel; c++) {
                         ChannelEntry through = entry(channels, c, net);
-                        through.sourceY = net.routeByLayer.get(c).y;
+                        through.sourceY = net.yAt(net.routeByLayer.get(c));
                         through.targetYs.add(net.routeByLayer.get(c + 1).y);
                     }
                 } else {
@@ -544,7 +677,7 @@ public final class SchematicLayout {
                         lanes.put(net, bottom + LANE_SPACING * (lanes.size() + 2));
                     }
                     ChannelEntry leaving = entry(channels, net.source.layer, net);
-                    leaving.sourceY = net.source.y;
+                    leaving.sourceY = net.yAt(net.source);
                     leaving.usesLane = true;
                     ChannelEntry arriving = entry(channels, sink.node.layer - 1, net);
                     arriving.usesLane = true;
@@ -622,7 +755,7 @@ public final class SchematicLayout {
     private void drawNet(Net net, List<Map<Net, ChannelEntry>> channels, Map<Net, Integer> lanes, int[] columnX) {
         Node source = net.source;
         if (net.labelled) {
-            net.labelAt = new Point(source.x + source.width + 4, source.y - 4);
+            net.labelAt = new Point(source.x + source.width + 4, net.yAt(source) - 4);
         }
         for (Node route : net.routeByLayer.values()) {
             if (route.kind == Kind.ROUTE) {
@@ -641,12 +774,12 @@ public final class SchematicLayout {
                 Node from = net.routeByLayer.get(c);
                 for (Sink sink : net.sinks) {
                     if (sink.node.layer == c + 1) {
-                        net.segments.add(new Segment(from.x + from.width, from.y, sink.node.x, from.y));
+                        net.segments.add(new Segment(from.x + from.width, net.yAt(from), sink.node.x, net.yAt(from)));
                     }
                 }
                 Node onward = net.routeByLayer.get(c + 1);
                 if (onward != null && onward != from) {
-                    net.segments.add(new Segment(from.x + from.width, from.y, onward.x, from.y));
+                    net.segments.add(new Segment(from.x + from.width, net.yAt(from), onward.x, net.yAt(from)));
                 }
                 continue;
             }

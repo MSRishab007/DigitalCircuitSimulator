@@ -83,10 +83,10 @@ public final class UserGuide {
                 new String[]{"Run simulation", "Run the whole netlist, then write the report and waveform."},
                 new String[]{"Step event", "Process one signal event at a time. The status bar shows the time and the events still waiting."},
                 new String[]{"Reset", "Start stepping again from time 0."},
-                new String[]{"Telemetry log", "See the run report, including events processed and the critical path delay."},
+                new String[]{"Telemetry log", "See the run report, including events processed, the critical path and a PASS or FAIL line for each `ASSERT`."},
                 new String[]{"Waveform viewer", "See each wire over time. Hover to read values, and click to place a marker that measures delays. Ctrl+scroll zooms."},
-                new String[]{"Schematic", "See the circuit drawn from your netlist. After a run, wires show their values, and the slider moves through time."},
-                new String[]{"Analysis", "Generate truth tables and state tables, analyze timing and resources, validate, and compare two circuits."});
+                new String[]{"Schematic", "See the circuit drawn from your netlist. After a run, wires show their values, and the slider moves through time. Collapse macros draws each macro as one box, and Show critical path marks the slowest route."},
+                new String[]{"Analysis", "Generate truth tables and state tables, analyze timing and resources, measure fault coverage, validate, and compare two circuits."});
         if (surface == Surface.BROWSER) {
             sink.paragraph("Keyboard shortcuts: Ctrl+Enter runs, F10 steps, Ctrl+S saves and Ctrl+O opens.");
         } else if (surface == Surface.DESKTOP) {
@@ -130,7 +130,7 @@ public final class UserGuide {
                 new String[]{"`SIM_TIME 200`", "Stop the run at 200 ns. The default is 1000 ns."},
                 new String[]{"`WIRE A`", "Declare a wire named A."},
                 new String[]{"`STIMULUS 50 A 1`", "Set A to 1 at 50 ns. Values are 0, 1 or Z."},
-                new String[]{"`ASSERT 70 Sum 1`", "Stop with an error unless Sum is 1 at 70 ns. Values are 0, 1, X or Z."},
+                new String[]{"`ASSERT 70 Sum 1`", "Check that Sum is 1 at 70 ns and report PASS or FAIL. Values are 0, 1, X or Z."},
                 new String[]{"`FAULT STUCK_AT_0 A`", "Hold A at 0 for the whole run, whatever drives it. STUCK_AT_1 holds it at 1."});
         sink.heading("Components");
         sink.table(new String[]{"Line", "Meaning"},
@@ -212,7 +212,8 @@ public final class UserGuide {
                 new String[]{"Z", "Disconnected. Drawn as a dashed orange line."});
         sink.paragraph("Short spikes at a change are normal. Gates take time to respond, and inputs that change together are processed one at a time, so a gate can briefly see a mix of old and new values.");
         sink.paragraph("Truth tables ignore `STIMULUS`, `ASSERT` and `SIM_TIME`, and try every input combination until the circuit settles. They allow at most 16 inputs and flip-flops combined.");
-        sink.paragraph("`Critical path delay` is the slowest route through the gates. `Maximum clock frequency` follows from it. The resource count lists the components that make up the circuit.");
+        sink.paragraph("`Critical path delay` is the slowest route through the gates, and `Critical path` names them. A route can start at a flip-flop, whose own delay counts as its clock-to-Q time, and it ends at the next flip-flop's D input. `Maximum clock frequency` follows from it. The resource count lists the components that make up the circuit.");
+        sink.paragraph("`Fault coverage` tests how good your `STIMULUS` lines are. It runs the circuit once for each wire stuck at 0 and each wire stuck at 1, and a fault counts as detected when an output or flip-flop value changes. Wires listed as not detected need another stimulus that would reveal them. Wires with a `FAULT` line are skipped.");
     }
 
     private static void errors(Sink sink) {
@@ -225,8 +226,8 @@ public final class UserGuide {
                 new String[]{"Unclocked combinational loop detected", "A gate's output feeds back to its own input. Break the loop with a `DFF`."},
                 new String[]{"is driven by more than one component", "Give each gate its own output wire, or use `BUFFER` for a shared bus."},
                 new String[]{"Clock period must be an even number", "Use a period such as 20, which divides into two equal halves."},
-                new String[]{"Assertion failed at t=70", "The wire's value at that time wasn't what `ASSERT` expected. Check the waveform at that time."},
-                new String[]{"Assertion at t=70 is after the end of the simulation", "Increase `SIM_TIME`, or move the assertion to an earlier time."},
+                new String[]{"FAIL t=70 Sum expected 1, was 0", "The wire's value at that time wasn't what `ASSERT` expected. Check the waveform at that time."},
+                new String[]{"FAIL t=70 Sum expected 1, but the simulation ended first", "Increase `SIM_TIME`, or move the assertion to an earlier time."},
                 new String[]{"Every wire stays X", "Add `STIMULUS` lines or a `CLOCK` to drive the circuit's inputs."},
                 new String[]{"Could not detect input and output wires", "Type the wire names into the Analysis fields, separated by commas."});
     }
@@ -239,13 +240,14 @@ public final class UserGuide {
         sink.table(new String[]{"Command", "What it does"},
                 new String[]{"`simulate circuit.netlist out.vcd`", "Runs the circuit, writes the waveform, and prints a truth table when the circuit is small enough."},
                 new String[]{"`validate circuit.netlist`", "Checks the syntax, loops and shared output wires without running."},
-                new String[]{"`analyze circuit.netlist`", "Prints the critical path delay, the maximum clock frequency and the resources."},
+                new String[]{"`analyze circuit.netlist`", "Prints the critical path and its delay, the maximum clock frequency and the resources."},
                 new String[]{"`truth-table circuit.netlist`", "Prints a truth table or state table. Add `A,B Sum,Carry` to choose the wires."},
                 new String[]{"`equivalent a.netlist b.netlist`", "Prints EQUIVALENT, or NOT_EQUIVALENT with the first row that differs."},
+                new String[]{"`fault-coverage circuit.netlist`", "Prints how many stuck-at faults your stimuli detect, and lists the rest."},
                 new String[]{"`check`", "Runs the self-check."},
                 new String[]{"`guide`", "Prints this guide."},
                 new String[]{"`help`", "Lists the commands."});
-        sink.paragraph("Put `java -cp target/classes simulator.Main` before each command. A failed command prints its reason and exits with status 1. `equivalent` exits with status 2 when the circuits differ.");
+        sink.paragraph("Put `java -cp target/classes simulator.Main` before each command. A failed command prints its reason and exits with status 1. `simulate` also exits with status 1 when an `ASSERT` fails, after printing the full report. `equivalent` exits with status 2 when the circuits differ.");
         sink.paragraph("To test your own netlist from start to finish, run `validate`, then `simulate`, then `truth-table`. To test the browser engine, run `node scripts/browser-smoke-test.js` after building.");
     }
 

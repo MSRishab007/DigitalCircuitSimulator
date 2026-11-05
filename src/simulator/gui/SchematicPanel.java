@@ -28,6 +28,7 @@ final class SchematicPanel extends JPanel implements Scrollable {
     private static final Color LOW = new Color(0xB3261E);
     private static final Color HIGH_Z = new Color(0xB8500B);
     private static final Color UNKNOWN = new Color(0x8A9199);
+    private static final Color CRITICAL = new Color(0xF2C14E);
     private static final Font LABEL_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 10);
     private static final Font ID_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 11);
     private static final Font TYPE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 9);
@@ -47,6 +48,7 @@ final class SchematicPanel extends JPanel implements Scrollable {
     private double fitFloor = SMALLEST_AUTOMATIC_SCALE;
     private String hoveredWire;
     private SchematicLayout.Node hoveredNode;
+    private boolean showCriticalPath;
 
     SchematicPanel() {
         setBackground(Color.WHITE);
@@ -126,6 +128,11 @@ final class SchematicPanel extends JPanel implements Scrollable {
     void setValues(Function<String, Character> source) {
         values = source;
         publishReadout();
+        repaint();
+    }
+
+    void setShowCriticalPath(boolean show) {
+        showCriticalPath = show;
         repaint();
     }
 
@@ -364,6 +371,13 @@ final class SchematicPanel extends JPanel implements Scrollable {
     }
 
     private void paintNet(Graphics2D g, SchematicLayout.Net net) {
+        if (showCriticalPath && net.onCriticalPath) {
+            g.setColor(CRITICAL);
+            g.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            for (SchematicLayout.Segment s : net.segments) {
+                g.drawLine(s.x1, s.y1, s.x2, s.y2);
+            }
+        }
         Character value = valueOf(net.wire);
         boolean hovered = net.wire.equals(hoveredWire);
         g.setColor(colorOf(value));
@@ -394,7 +408,12 @@ final class SchematicPanel extends JPanel implements Scrollable {
                 break;
             case ROUTE:
                 break;
+            case MODULE:
+                paintCriticalMark(g, node);
+                paintModule(g, node, hovered);
+                break;
             default:
+                paintCriticalMark(g, node);
                 paintComponentNode(g, node, hovered);
                 break;
         }
@@ -426,6 +445,40 @@ final class SchematicPanel extends JPanel implements Scrollable {
             g.setColor(colorOf(value));
             g.drawString(String.valueOf(Character.toUpperCase(value)), node.x + node.width - 16, baseline);
         }
+    }
+
+    private void paintCriticalMark(Graphics2D g, SchematicLayout.Node node) {
+        if (showCriticalPath && node.onCriticalPath) {
+            g.setColor(CRITICAL);
+            g.setStroke(new BasicStroke(3f));
+            g.drawRoundRect(node.x - 2, node.y - node.height / 2 - 2, node.width + 4, node.height + 4, 8, 8);
+        }
+    }
+
+    private void paintModule(Graphics2D g, SchematicLayout.Node node, boolean hovered) {
+        int left = node.x + 8;
+        int right = node.x + node.width - 8;
+        int top = node.y - node.height / 2 + 4;
+        g.setStroke(new BasicStroke(1.4f));
+        g.setColor(LINE);
+        for (int pin = 0; pin < node.inputCount; pin++) {
+            g.drawLine(node.x, node.inputY(pin), left, node.inputY(pin));
+        }
+        for (int pin = 0; pin < node.outputCount; pin++) {
+            g.drawLine(right, node.outputY(pin), node.x + node.width, node.outputY(pin));
+        }
+        g.setColor(Color.WHITE);
+        g.fillRect(left, top, right - left, node.height - 8);
+        g.setColor(hovered ? HOVER : TEXT);
+        g.setStroke(new BasicStroke(hovered ? 2.2f : 1.5f));
+        g.drawRect(left, top, right - left, node.height - 8);
+        g.setFont(TYPE_FONT);
+        FontMetrics metrics = g.getFontMetrics();
+        g.drawString(node.typeName, node.x + (node.width - metrics.stringWidth(node.typeName)) / 2, node.y - 2);
+        g.setFont(ID_FONT);
+        metrics = g.getFontMetrics();
+        g.setColor(hovered ? HOVER : MUTED);
+        g.drawString(node.id, node.x + (node.width - metrics.stringWidth(node.id)) / 2, node.y + 12);
     }
 
     private void paintComponentNode(Graphics2D g, SchematicLayout.Node node, boolean hovered) {

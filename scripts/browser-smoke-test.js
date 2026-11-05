@@ -30,6 +30,19 @@ assert.ok(run.waveform.includes("$var wire 1"));
 assert.strictEqual(call("validateCircuit", netlist).valid, true);
 assert.strictEqual(call("analyzeCircuit", netlist).criticalPathDelay, 5);
 
+const failing = call("runSimulation", netlist.replace("ASSERT 5 OUT 1", "ASSERT 5 OUT 0"));
+assert.strictEqual(failing.failedAssertions, 1);
+assert.deepStrictEqual(failing.assertions, ["FAIL t=5 OUT expected 0, was 1"]);
+assert.deepStrictEqual(call("analyzeCircuit", netlist).criticalPath, ["gate"]);
+
+const coverage = call("faultCoverage", netlist);
+assert.strictEqual(coverage.total, 6);
+assert.ok(coverage.undetected.includes("OUT stuck at 1"));
+
+const macro = "WIRE A\nWIRE B\nWIRE S\nWIRE C\nHALF_ADDER h A B S C\n";
+const collapsed = call("schematicLayoutCollapsed", macro);
+assert.strictEqual(collapsed.nodes.find(node => node.kind === "MODULE").outputs.length, 2);
+
 const ports = call("detectWires", netlist);
 assert.deepStrictEqual(ports.inputs, ["A", "B"]);
 assert.deepStrictEqual(ports.outputs, ["OUT"]);
