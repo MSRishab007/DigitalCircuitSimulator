@@ -198,6 +198,8 @@ node scripts/browser-smoke-test.js
 
 These run the JUnit suite, the self-check of each major feature, and a test of the compiled browser engine. GitHub Actions runs the build and the browser engine test on every push, and publishes the browser version to GitHub Pages from `main`.
 
+`mvn test` also measures test coverage with [JaCoCo](https://www.jacoco.org/jacoco/). Open `target/site/jacoco/index.html` to see the results for each package.
+
 ## Known limitations
 
 - Wires carry a single bit. Multi-bit buses and integer truth tables are not supported.
