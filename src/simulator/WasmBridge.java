@@ -96,7 +96,6 @@ public class WasmBridge {
     private static VcdLogger debugLogger;
     private static SimulationContext debugContext;
 
-    /** Starts a step-through session at time 0, replacing any earlier session. */
     @JSExport
     public static String debugStart(String netlist) {
             try {
@@ -128,7 +127,6 @@ public class WasmBridge {
             }
         }
 
-    /** Processes one event. The stepped field is false once nothing is left to process. */
     @JSExport
     public static String debugStep() {
             try {

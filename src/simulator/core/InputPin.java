@@ -16,5 +16,5 @@ public class InputPin implements SignalObserver {
     }
 
     public VoltageState getCurrentState() { return currentState; }
-    public DigitalComponent getParentComponent() { return parentComponent; } // New Getter
+    public DigitalComponent getParentComponent() { return parentComponent; }
 }

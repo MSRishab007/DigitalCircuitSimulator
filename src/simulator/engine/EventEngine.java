@@ -8,7 +8,6 @@ public class EventEngine {
     private long currentTime;
     private long maxSimulationTime;
     
-    // Telemetry Metrics
     private long totalEventsProcessed;
     private int peakQueueDepth;
     private long computeTimeMillis;
@@ -81,7 +80,6 @@ public class EventEngine {
         return eventQueue.isEmpty() ? Long.MAX_VALUE : eventQueue.peek().getExecutionTime();
     }
 
-    // Getters
     public long getCurrentTime() { return currentTime; }
     public long getMaxSimulationTime() { return maxSimulationTime; }
     public void setMaxSimulationTime(long time) {

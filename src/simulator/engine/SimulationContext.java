@@ -4,9 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Runtime dependencies for one simulation session.
- */
 public final class SimulationContext {
     private static final SimulationContext DEFAULT =
             new SimulationContext(EventEngine.getInstance());

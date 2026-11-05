@@ -20,21 +20,19 @@ public class TopologyValidator {
 
         for (DigitalComponent component : components) {
             if (hasCycle(component, visited, recursionStack)) {
-                return false; // Cycle detected
+                return false;
             }
         }
-        return true; // Validation passed
+        return true;
     }
 
     private boolean hasCycle(DigitalComponent current, Set<DigitalComponent> visited, Set<DigitalComponent> recursionStack) {
-        // Sequential components (like Flip-Flops) act as valid cycle breakers.
-        // We do not traverse through them for unclocked loop detection.
         if (current instanceof SequentialComponent) {
             return false;
         }
 
         if (recursionStack.contains(current)) {
-            return true; // Unclocked loop found
+            return true;
         }
         if (visited.contains(current)) {
             return false;
@@ -43,8 +41,7 @@ public class TopologyValidator {
         visited.add(current);
         recursionStack.add(current);
 
-        // Traverse to downstream components connected via wires
-        for (OutputPin outputPin : current.getOutputPins()) { // Direct access per DigitalComponent spec
+        for (OutputPin outputPin : current.getOutputPins()) {
             Wire wire = outputPin.getConnectedWire();
             if (wire != null) {
                 for (SignalObserver observer : wire.getObservers()) {
@@ -60,7 +57,6 @@ public class TopologyValidator {
         return false;
     }
 
-    /** Returns a description of a wire that gates other than tri-state buffers share, or null when there is none. */
     public String findDriverConflict(List<DigitalComponent> components) {
         Map<simulator.core.Wire, List<DigitalComponent>> drivers = new java.util.LinkedHashMap<>();
         for (DigitalComponent component : components) {

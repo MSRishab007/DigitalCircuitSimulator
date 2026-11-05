@@ -11,7 +11,6 @@ public class SequentialComponent extends DigitalComponent {
     private VoltageState previousClockState = VoltageState.UNKNOWN;
 
     public SequentialComponent(String id, int delay, MemoryState initialState) {
-        // Example: D Flip-Flop has 1 Data Input, 1 Clock Input, 1 Output
         super(id, 2, 1); 
         this.propagationDelay = delay;
         this.currentState = initialState;
@@ -24,12 +23,11 @@ public class SequentialComponent extends DigitalComponent {
     public void clockPulse() {
         VoltageState dataInput = inputPins.get(0).getCurrentState();
         
-        // Update internal state variable synchronously[cite: 3]
         MemoryState nextState = currentState.handleClockPulse(dataInput);
         
         if (nextState != currentState) {
             this.currentState = nextState;
-            evaluate(); // Trigger asynchronous output generation
+            evaluate();
         }
     }
 
@@ -47,7 +45,6 @@ public class SequentialComponent extends DigitalComponent {
 
     @Override
     public void evaluate() {
-        // Output functions evaluate asynchronously to generate the final electrical signal[cite: 3]
         VoltageState newOutput = currentState.getOutputVoltage();
         Wire targetWire = outputPins.get(0).getConnectedWire();
         

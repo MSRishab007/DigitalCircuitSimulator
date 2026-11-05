@@ -6,6 +6,7 @@ import simulator.application.UserGuide;
 import simulator.parser.SimulationFacade;
 import simulator.engine.CircuitPorts;
 import simulator.engine.TruthTable;
+import simulator.gui.WaveformPanel;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ public class Main {
     private static final SimulationApplicationService SERVICE =
             new SimulationApplicationService();
     private static final java.util.Set<String> COMMANDS =
-            java.util.Set.of("simulate", "validate", "analyze", "truth-table", "equivalent", "fault-coverage", "check", "guide", "help");
+            java.util.Set.of("simulate", "validate", "analyze", "truth-table", "equivalent", "fault-coverage", "waveform-image", "check", "guide", "help");
 
     public static void main(String[] args) {
         int status = run(args);
@@ -22,7 +23,21 @@ public class Main {
         }
     }
 
-    /** Runs one command and returns its exit status: 0 for success, 2 for circuits that differ. */
+    private static void waveformImage(String netlistPath, String imagePath) throws java.io.IOException {
+        String netlist = java.nio.file.Files.readString(java.nio.file.Path.of(netlistPath));
+        java.nio.file.Path waveform = java.nio.file.Files.createTempFile("waveform", ".vcd");
+        try {
+            SERVICE.simulate(netlist, waveform.toString());
+            WaveformPanel panel = new WaveformPanel();
+            panel.setSize(1100, 400);
+            panel.loadVcd(waveform.toString());
+            panel.exportPng(new java.io.File(imagePath));
+        } finally {
+            java.nio.file.Files.deleteIfExists(waveform);
+        }
+        System.out.println("Waveform image written to " + imagePath);
+    }
+
     static int run(String[] args) {
         if (args.length == 0) {
             printUsage();
@@ -47,6 +62,7 @@ public class Main {
                 }
                 case "fault-coverage" -> System.out.println(SERVICE.faultCoverage(
                         java.nio.file.Files.readString(java.nio.file.Path.of(rest[0]))).describe());
+                case "waveform-image" -> waveformImage(rest[0], rest[1]);
                 case "validate" -> validate(rest[0]);
                 case "analyze" -> analyze(rest[0]);
                 case "truth-table" -> truthTable(rest);
@@ -73,6 +89,7 @@ public class Main {
         return switch (command) {
             case "simulate" -> count == 1 || count == 2;
             case "validate", "analyze", "fault-coverage" -> count == 1;
+            case "waveform-image" -> count == 2;
             case "check", "guide", "help" -> count == 0;
             case "truth-table" -> count == 1 || count == 3;
             default -> count == 2 || count == 4;
@@ -119,7 +136,6 @@ public class Main {
         return 2;
     }
 
-    /** Uses the wires named on the command line, or detects them when none are given. */
     private static List<List<String>> chooseWires(String netlist, String[] args, int firstWireArgument) {
         if (args.length > firstWireArgument) {
             return List.of(names(args[firstWireArgument]), names(args[firstWireArgument + 1]));
@@ -165,6 +181,7 @@ public class Main {
         out.println("  java simulator.Main truth-table <netlist> [<inputs> <outputs>]");
         out.println("  java simulator.Main equivalent <first> <second> [<inputs> <outputs>]");
         out.println("  java simulator.Main fault-coverage <netlist>");
+        out.println("  java simulator.Main waveform-image <netlist> <output.png>");
         out.println("  java simulator.Main check");
         out.println("  java simulator.Main guide");
         out.println("  java simulator.Main help");

@@ -1,5 +1,3 @@
-// Runs the built browser engine in Node. Usage, after "mvn package":
-//   node scripts/browser-smoke-test.js
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");

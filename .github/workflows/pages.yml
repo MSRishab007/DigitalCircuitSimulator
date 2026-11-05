@@ -10,7 +10,6 @@ permissions:
   pages: write
   id-token: write
 
-# Runs one deployment at a time, and a deployment already running is left to finish.
 concurrency:
   group: pages
   cancel-in-progress: false

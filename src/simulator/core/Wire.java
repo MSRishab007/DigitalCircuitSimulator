@@ -114,7 +114,6 @@ public class Wire {
     }
 
     public String getWireId() { return wireId; }
-    /** The state a stuck-at fault holds this wire at, or null when it has no fault. */
     public VoltageState getStuckAtState() { return stuckAtState; }
     public VoltageState getCurrentState() { return currentState; }
     public List<SignalObserver> getObservers() { return observers; }

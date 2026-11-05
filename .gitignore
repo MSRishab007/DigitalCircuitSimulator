@@ -1,16 +1,13 @@
-# Maven and Java build output
 target/
 bin/
 .build/
 *.class
 
-# Generated simulator artifacts
 *.vcd
+!samples/waveforms/*.vcd
 Simulator.jar
 manifest.txt
-# The browser demo is a tracked source file.
 
-# IDE metadata
 .idea/
 *.iml
 .project

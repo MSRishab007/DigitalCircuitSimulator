@@ -28,12 +28,11 @@ class LogicGateTest {
 
     @Test
     void testAndGateLogicAndDelay() {
-        AndGate andGate = new AndGate("AND1", 15); // 15ns delay
+        AndGate andGate = new AndGate("AND1", 15);
         inputA.addObserver(andGate.getInputPin(0));
         inputB.addObserver(andGate.getInputPin(1));
         andGate.getOutputPin(0).connect(output);
 
-        // Inject HIGH into both inputs at t=0
         engine.scheduleEvent(new SignalEvent(0, inputA, VoltageState.HIGH));
         engine.scheduleEvent(new SignalEvent(0, inputB, VoltageState.HIGH));
         
@@ -50,7 +49,6 @@ class LogicGateTest {
         inputB.addObserver(orGate.getInputPin(1));
         orGate.getOutputPin(0).connect(output);
 
-        // Inject HIGH into A, LOW into B at t=0
         engine.scheduleEvent(new SignalEvent(0, inputA, VoltageState.HIGH));
         engine.scheduleEvent(new SignalEvent(0, inputB, VoltageState.LOW));
         
@@ -65,7 +63,6 @@ class LogicGateTest {
         inputA.addObserver(notGate.getInputPin(0));
         notGate.getOutputPin(0).connect(output);
 
-        // Inject LOW into A at t=0
         engine.scheduleEvent(new SignalEvent(0, inputA, VoltageState.LOW));
         
         engine.runSimulation();

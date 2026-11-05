@@ -6,14 +6,13 @@ public class HighState implements MemoryState {
     
     @Override
     public MemoryState handleClockPulse(VoltageState dataInput) {
-        // Example logic for a D Flip-Flop: Next state equals Data Input
         if (dataInput == VoltageState.LOW) {
-            return new LowState(); // Transition to LowState
+            return new LowState();
         }
         if (dataInput == VoltageState.UNKNOWN || dataInput == VoltageState.HIGH_Z) {
             return new UnknownState();
         }
-        return this; // Remain in HighState
+        return this;
     }
 
     @Override

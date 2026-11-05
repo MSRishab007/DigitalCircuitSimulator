@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/** Draws a {@link SchematicLayout}, colouring wires by the values passed to {@link #setValues}. */
 final class SchematicPanel extends JPanel implements Scrollable {
     private static final Color TEXT = new Color(0x1F2328);
     private static final Color MUTED = new Color(0x5F6770);
@@ -124,7 +123,6 @@ final class SchematicPanel extends JPanel implements Scrollable {
         repaint();
     }
 
-    /** Sets the source of wire values as 0, 1, x or z, or null to draw plain wires. */
     void setValues(Function<String, Character> source) {
         values = source;
         publishReadout();

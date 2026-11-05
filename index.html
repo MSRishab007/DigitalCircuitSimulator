@@ -286,10 +286,6 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    // ------------------------------------------------------------------
-    // Code editor: a transparent textarea over coloured text
-    // ------------------------------------------------------------------
-
     const DIRECTIVES = new Set(["WIRE", "SIM_TIME", "STIMULUS", "ASSERT", "FAULT", "DEF", "ENDDEF"]);
 
     function colouredLine(text) {
@@ -411,10 +407,6 @@
         };
     }
 
-    // ------------------------------------------------------------------
-    // Canvas views: a scrolling area with a canvas pinned to the visible part
-    // ------------------------------------------------------------------
-
     function createCanvasView(host, paint) {
         const spacer = document.createElement("div");
         spacer.className = "spacer";
@@ -489,10 +481,6 @@
         if (state === "z") return COLOR.orange;
         return state === undefined ? COLOR.line : COLOR.unknown;
     }
-
-    // ------------------------------------------------------------------
-    // Waveform viewer
-    // ------------------------------------------------------------------
 
     const waveform = (function () {
         const ROW = 46, HEADER = 28, RIGHT = 36, HIGH = 9, MID = 22, LOW = 35, SNAP = 6, MAX_ZOOM = 200, MIN_AXIS = 10;
@@ -642,7 +630,6 @@
             }
             g.restore();
 
-            // Frozen signal names, with the value at the cursor beside each one.
             g.fillStyle = "#ffffff";
             g.fillRect(area.x, area.y, labels, area.height);
             g.font = LABEL_FONT;
@@ -664,7 +651,6 @@
             g.strokeStyle = COLOR.rule;
             line(g, area.x + labels + 0.5, area.y, area.x + labels + 0.5, area.y + area.height);
 
-            // Frozen time axis.
             g.fillStyle = "#ffffff";
             g.fillRect(area.x, area.y, area.width, HEADER);
             g.font = AXIS_FONT;
@@ -830,10 +816,6 @@
             }
         };
     })();
-
-    // ------------------------------------------------------------------
-    // Schematic
-    // ------------------------------------------------------------------
 
     const schematic = (function () {
         const SYMBOL_W = 44, SYMBOL_H = 36, HIT = 5, AUTO_FLOOR = 0.45;
@@ -1252,10 +1234,6 @@
         };
     })();
 
-    // ------------------------------------------------------------------
-    // Application
-    // ------------------------------------------------------------------
-
     let fileName = null;
     let dirty = false;
     let simulatedNetlist = null;
@@ -1297,7 +1275,6 @@
 
     function editorChanged() {
         setDirty(true);
-        // A step-through session belongs to the netlist it started from, so an edit ends it.
         sessionActive = false;
         stepFinished = false;
         setStatus();
@@ -1350,7 +1327,6 @@
         return false;
     }
 
-    /** Runs work after the browser has painted the busy state, since the engine runs on the page's thread. */
     function runTask(activity, work) {
         if (!needEngine()) return;
         busy = true;
@@ -1365,8 +1341,6 @@
             }
         }));
     }
-
-    // --- Run, step, reset ---
 
     function runSimulationClicked() {
         const netlist = editor.text;
@@ -1462,8 +1436,6 @@
         updateButtons();
     }
 
-    // --- Schematic values ---
-
     function setScrubberEnabled(enabled) {
         ["sch-prev", "sch-next", "sch-time"].forEach(id => { $(id).disabled = !enabled; });
         $("sch-time").title = enabled ? "Choose the time whose wire values are shown" : "Run a simulation to see wire values";
@@ -1510,8 +1482,6 @@
     $("sch-prev").addEventListener("click", () => scrubTo(waveform.previousEdge(Number($("sch-time").value))));
     $("sch-next").addEventListener("click", () => scrubTo(waveform.nextEdge(Number($("sch-time").value))));
 
-    // --- Analysis ---
-
     const names = text => text.split(",").map(name => name.trim()).filter(name => name);
 
     function showText(text, kind) {
@@ -1531,7 +1501,6 @@
         showErrorLine(error.message);
     }
 
-    /** Applies the desktop app's rule: wires that are all missing belong to an earlier netlist. */
     function chooseWires(netlist) {
         const inputs = names($("inputs").value);
         const outputs = names($("outputs").value);
@@ -1689,8 +1658,6 @@
         setActivity("Saved truth-table.csv", "good");
     });
 
-    // --- Files and examples ---
-
     function loadNetlist(text, name) {
         fileName = name;
         editor.set(text);
@@ -1704,7 +1671,6 @@
                 const ports = callEngine("detectWires", text);
                 if (ports.inputs.length || ports.outputs.length || ports.sequential) setWireFields(ports);
             } catch (error) {
-                // Running or analyzing this netlist reports the same error with its line number.
             }
         }
         refreshSchematic();
@@ -1754,8 +1720,6 @@
             setActivity("Loaded the " + name + " example");
         }
     });
-
-    // --- Window behaviour ---
 
     document.querySelectorAll(".tabs button").forEach(tab => {
         tab.addEventListener("click", () => {

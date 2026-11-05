@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public class WaveformPanel extends JPanel implements Scrollable {
-    // Inner class to map time to a physical voltage state
     private static class Transition {
         final long time;
         final char state;
@@ -39,7 +38,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
     private static final int LEVEL_LOW = 35;
     private static final int SNAP_PIXELS = 6;
     private static final double MAX_PIXELS_PER_NS = 200;
-    /** Keeps wires visible when everything happens at time 0 or nothing happens at all. */
     private static final long MINIMUM_AXIS_NS = 10;
 
     private static final Color GRID = new Color(0xE6E8EB);
@@ -110,7 +108,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         addMouseWheelListener(mouse);
     }
 
-    /** Scrolling repaints the frozen names and time axis, so the viewport must not copy old pixels. */
     @Override
     public void addNotify() {
         super.addNotify();
@@ -131,18 +128,15 @@ public class WaveformPanel extends JPanel implements Scrollable {
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.startsWith("$var")) {
-                    // Parse: $var wire 1 ! Input_A $end
                     String[] parts = line.split("\\s+");
                     if (parts.length >= 5) {
                         symbolToName.put(parts[3], parts[4]);
                         signals.put(parts[4], new ArrayList<>());
                     }
                 } else if (line.startsWith("#")) {
-                    // Parse timestamp: #50
                     currentTime = Long.parseLong(line.substring(1));
                     maxTime = Math.max(maxTime, currentTime);
                 } else if (line.length() >= 2) {
-                    // Parse state change: 1! or 0! or z!
                     char state = line.charAt(0);
                     if (state == '0' || state == '1' || state == 'z' || state == 'Z' || state == 'x' || state == 'X') {
                         String symbol = line.substring(1);
@@ -162,7 +156,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         }
         cursorTime = null;
         publishReadout();
-        // Force the canvas to recalculate and redraw
         revalidate();
         repaint();
     }
@@ -172,7 +165,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         publishReadout();
     }
 
-    /** Shows only the signals whose name contains the text, ignoring case. */
     public void setFilter(String text) {
         filter = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
         revalidate();
@@ -207,13 +199,11 @@ public class WaveformPanel extends JPanel implements Scrollable {
         return maxTime;
     }
 
-    /** The value of a loaded wire at a time as 0, 1, x or z, or null when the wire was not loaded. */
     public Character valueAt(String wire, long time) {
         List<Transition> transitions = signals.get(wire);
         return transitions == null ? null : stateAt(transitions, time);
     }
 
-    /** The first signal change after a time, or the time itself when nothing changes later. */
     public long nextEdge(long time) {
         long best = Long.MAX_VALUE;
         for (List<Transition> transitions : signals.values()) {
@@ -226,7 +216,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         return best == Long.MAX_VALUE ? time : best;
     }
 
-    /** The last signal change before a time, or 0 when nothing changes earlier. */
     public long previousEdge(long time) {
         long best = 0;
         for (List<Transition> transitions : signals.values()) {
@@ -256,12 +245,10 @@ public class WaveformPanel extends JPanel implements Scrollable {
         ImageIO.write(image, "png", file);
     }
 
-    /** Runs a little past the last change, so a wire's final value shows as a line and not just an edge. */
     private long axisEnd() {
         return Math.max(maxTime + Math.max(1, maxTime / 10), MINIMUM_AXIS_NS);
     }
 
-    /** True when at least one wire changes value during the simulation. */
     public boolean hasActivity() {
         for (List<Transition> transitions : signals.values()) {
             if (transitions.size() > 1) {
@@ -306,7 +293,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         repaint();
     }
 
-    /** Pulls the cursor onto a nearby signal edge, which makes propagation delays easy to measure. */
     private long snap(long time) {
         long best = time;
         double bestDistance = SNAP_PIXELS / Math.max(pixelsPerNs(), 1e-9);
@@ -445,7 +431,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         long firstTick = Math.max(0, (long) Math.floor(timeAt(view.x + labels) / step)) * step;
         long lastTime = Math.min(axisEnd(), (long) Math.ceil(timeAt(view.x + view.width)));
 
-        // Traces and grid scroll underneath the frozen names and time axis.
         Shape outer = g2.getClip();
         g2.clipRect(view.x + labels, view.y + HEADER_HEIGHT, view.width - labels, view.height - HEADER_HEIGHT);
         g2.setColor(GRID);
@@ -470,7 +455,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         }
         g2.setClip(outer);
 
-        // Frozen signal names, with the value at the cursor beside each one.
         g2.setColor(Color.WHITE);
         g2.fillRect(view.x, view.y, labels, view.height);
         g2.setFont(labelFont);
@@ -492,7 +476,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
         g2.setColor(RULE);
         g2.drawLine(view.x + labels, view.y, view.x + labels, view.y + view.height);
 
-        // Frozen time axis.
         g2.setColor(Color.WHITE);
         g2.fillRect(view.x, view.y, view.width, HEADER_HEIGHT);
         g2.setFont(axisFont);
@@ -576,7 +559,6 @@ public class WaveformPanel extends JPanel implements Scrollable {
             g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{5, 4}, 0));
             g2.drawLine(x1, y + LEVEL_MID, x2, y + LEVEL_MID);
         } else {
-            // Unknown: a shaded band, so it cannot be mistaken for a real logic level.
             g2.setColor(UNKNOWN_FILL);
             g2.fillRect(x1, y + LEVEL_HIGH, Math.max(1, x2 - x1), LEVEL_LOW - LEVEL_HIGH);
             if (x2 - x1 > 24) {

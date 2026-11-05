@@ -1,225 +1,207 @@
-# DigitalCircuitSimulator
+# Digital Circuit Simulator
 
-An object-oriented Java digital-circuit simulator with discrete-event timing,
-logic gates, sequential components, fault injection, topology validation, and
-Value Change Dump (VCD) waveform export.
+An event-driven digital logic simulator written in object-oriented Java. Describe a circuit in a text netlist, then simulate it, view its waveform and schematic, analyze its timing, and test it for faults, from a desktop application, a browser, or the command line.
 
-## Requirements
+**[Open the browser version](https://msrishab007.github.io/DigitalCircuitSimulator/)**
 
-- JDK 21 or newer
-- PowerShell on Windows, or equivalent shell commands
-- JUnit is bundled in `lib/junit-platform-console-standalone.jar`
+![Desktop application showing the waveform of a two-bit counter](docs/images/desktop-waveform.png)
 
-## Compile and test with Maven
+The project implements the approach described in *Object Oriented Approach for Modeling Digital Circuits* (Dezan, Lagadec, Pottier). It was developed for the Object Oriented Analysis and Design course (SS G514) at BITS Pilani.
 
-Maven is the canonical build tool for this project:
+## Features
 
-```powershell
-mvn test
-```
+**Simulation**
 
-This compiles `src`, compiles every test under `test`, and runs the JUnit 5
-suite. Java 21 or newer is required.
+- Discrete-event engine with per-gate propagation delays and four-state logic (0, 1, X, Z)
+- Gates, buffers, D flip-flops, clocks, and custom Boolean function blocks
+- Hierarchical macros, with a built-in library of adders, multiplexers, and decoders
+- Stuck-at fault injection and timed assertions
+- Single-event stepping for debugging
 
-## Manual compile
+**Analysis**
 
-The following commands are useful when Maven is unavailable:
+- Static timing analysis that names the critical path and reports the maximum clock frequency
+- Truth tables for combinational circuits and state tables for sequential circuits
+- Equivalence checking with a counterexample
+- Fault coverage reporting for your test stimuli
+- Detection of combinational loops and conflicting drivers
+- Resource counts
 
-```powershell
-$out = ".build\classes"
-New-Item -ItemType Directory -Force $out
-$sources = Get-ChildItem src -Recurse -Filter *.java | ForEach-Object FullName
-javac -d $out $sources
-```
+**Visualization and output**
 
-## Run tests manually
+- Interactive waveform viewer with zoom, filtering, and a measuring marker
+- Automatically drawn schematic with wires colored by value at any point in time
+- Collapsible macros and critical path highlighting on the schematic
+- Waveform export as VCD or PNG, schematic export as PNG, and truth table export as CSV
 
-```powershell
-$out = ".build\classes"
-$sources = Get-ChildItem src -Recurse -Filter *.java | ForEach-Object FullName
-$tests = Get-ChildItem test -Recurse -Filter *.java | ForEach-Object FullName
-javac -d $out $sources
-javac -cp "$out;lib\junit-platform-console-standalone.jar" -d $out $tests
-java -jar lib\junit-platform-console-standalone.jar execute `
-  --class-path $out --scan-class-path --include-classname '.*Test'
-```
+## Getting started
 
-## Run a simulation
+### Browser
 
-```text
-java simulator.Main <input.netlist> [output.vcd]
-```
+Open the [hosted version](https://msrishab007.github.io/DigitalCircuitSimulator/). No installation is needed.
 
-The output defaults to `output.vcd` when no second argument is provided.
+### Build from source
 
-## Run the desktop dashboard
+You need JDK 21 or newer and Maven.
 
-```text
-java simulator.gui.SimulatorDashboard
-```
-
-The dashboard edits netlists, runs and steps simulations, shows waveforms, and
-draws a schematic, and generates truth tables. The Schematic tab redraws as you
-edit. After a run or step it colours each wire by its value, and the time slider
-moves through the simulation. Truth tables and equivalence checks work on
-combinational circuits. Leave the wire fields empty or press **Detect wires**
-to use the netlist's undriven wires as inputs and its unread wires as outputs.
-
-## Netlist syntax
-
-```text
-SIM_TIME 100
-WIRE A
-WIRE B
-WIRE OUT
-STIMULUS 0 A 1
-STIMULUS 0 B 0
-AND and1 10 A B OUT
-```
-
-Supported components are `AND`, `OR`, `NOT`, `NAND`, `NOR`, `XOR`,
-`BUFFER`, `DFF`, and `CLOCK`.
-
-Additional commands:
-
-```text
-FAULT STUCK_AT_0 A
-FAULT STUCK_AT_1 B
-CLOCK master 20 CLOCK_WIRE
-DFF register 5 DATA CLOCK_WIRE Q
-```
-
-Stimulus values are `0`, `1`, or `Z`. Wires must be declared before they are
-referenced. Macro definitions use `DEF ...` and `ENDDEF`. A `FAULT` applies to
-the whole circuit wherever it appears, and a `DFF` output starts at 0.
-
-Assertions can verify a wire at a simulation timestamp:
-
-```text
-ASSERT 20 SUM 1
-ASSERT 20 BUS X
-```
-
-`X` means an unknown or contended signal. An assertion failure stops the run
-with the failing timestamp, wire, expected value, and actual value.
-
-## CLI analysis commands
-
-```powershell
-java simulator.Main simulate circuit.netlist output.vcd
-java simulator.Main validate circuit.netlist
-java simulator.Main analyze circuit.netlist
-java simulator.Main truth-table circuit.netlist A,B SUM
-java simulator.Main equivalent circuit-a.netlist circuit-b.netlist A,B SUM
-java simulator.Main truth-table circuit.netlist
-java simulator.Main equivalent circuit-a.netlist circuit-b.netlist
-```
-
-The simulation engine also exposes a `SimulationDebugger` API for stepping one
-event at a time, inspecting simulation time and pending-event count, and then
-resuming execution. This API is used by future GUI debugger controls without
-coupling the UI to the event queue.
-
-`truth-table` enumerates all binary combinations for the named input wires and
-prints their output states. `equivalent` compares two combinational netlists
-and returns a counterexample row when their outputs differ.
-
-The Swing dashboard now exposes the same controls through **Step Event** and
-**Reset**. Stepping updates the current simulation time, pending event count,
-and waveform viewer without restarting the session.
-
-The dashboard's **Analysis** tab also provides timing analysis, truth-table
-generation, and equivalence checking. Input and output wires are entered as
-comma-separated names; equivalence checking accepts a second netlist in the
-comparison editor.
-
-## Shared application API
-
-CLI, GUI, and WebAssembly clients share the operations in
-`SimulationApplicationService`: simulation, validation, timing analysis,
-truth-table generation, and equivalence checking. WebAssembly exports the
-following JSON APIs:
-
-```text
-runSimulation(netlist)
-validateCircuit(netlist)
-analyzeCircuit(netlist)
-generateTruthTable(netlist, "A,B", "SUM")
-checkEquivalent(firstNetlist, secondNetlist, "A,B", "SUM")
-```
-
-## Browser version
-
-`index.html` has the same tools as the desktop dashboard. The engine it runs,
-`target/generated/js/simulator.js`, is built on your computer and is not stored
-in Git. To run it locally, from the repository folder:
-
-```powershell
+```shell
+git clone https://github.com/MSRishab007/DigitalCircuitSimulator.git
+cd DigitalCircuitSimulator
 mvn clean package
+```
+
+This compiles the application, runs the test suite, and builds the browser engine.
+
+Start the desktop application:
+
+```shell
+java -cp target/classes simulator.gui.SimulatorDashboard
+```
+
+Confirm that everything works:
+
+```shell
+java -cp target/classes simulator.Main check
+```
+
+To run the browser version locally, serve the repository folder and open `http://localhost:8000/`:
+
+```shell
 python -m http.server 8000
 ```
 
-Then open `http://localhost:8000/`. To test the built engine without a browser:
+## Writing a netlist
 
-```powershell
+A netlist declares wires, connects components to them, and describes the test. This half adder is checked with two assertions:
+
+```text
+# Half adder
+SIM_TIME 100
+
+WIRE A
+WIRE B
+WIRE Sum
+WIRE Carry
+
+XOR sum_gate 10 A B Sum
+AND carry_gate 10 A B Carry
+
+STIMULUS 0 A 1
+STIMULUS 0 B 1
+
+ASSERT 50 Sum 0
+ASSERT 50 Carry 1
+```
+
+### Commands
+
+| Command | Meaning |
+|---|---|
+| `SIM_TIME 100` | Run for 100 ns |
+| `WIRE A` | Declare a wire |
+| `STIMULUS 0 A 1` | Drive wire `A` to `1` at 0 ns. Values are `0`, `1`, or `Z` |
+| `ASSERT 50 Sum 0` | Check a wire's value at 50 ns and report PASS or FAIL. Values are `0`, `1`, `X`, or `Z` |
+| `FAULT STUCK_AT_0 A` | Hold a wire at 0 for the whole run. `STUCK_AT_1` holds it at 1 |
+| `DEF NAME ports...` ... `ENDDEF` | Define a reusable macro, which can use other macros |
+| `# text` | Comment, on its own line or after a command |
+
+### Components
+
+| Component | Form |
+|---|---|
+| `AND`, `OR`, `NAND`, `NOR`, `XOR`, `XNOR` | `AND id delay in1 in2 out` |
+| `NOT` | `NOT id delay in out` |
+| `BUFFER` (tri-state) | `BUFFER id delay in enable out` |
+| `DFF` | `DFF id delay d clock q` |
+| `CLOCK` | `CLOCK id period out` |
+| `FUNC` | `FUNC id delay inputs... out = expression` |
+| `HALF_ADDER`, `FULL_ADDER`, `MUX2`, `DECODER2` | Library macros: `HALF_ADDER id A B SUM CARRY` |
+
+The **How to use** tab in the desktop and browser applications has the full reference, with worked examples. It is also available from the command line through the `guide` command.
+
+## Command line
+
+Each command follows `java -cp target/classes simulator.Main`.
+
+| Command | Description |
+|---|---|
+| `simulate <netlist> [output.vcd]` | Run the circuit and write the waveform |
+| `waveform-image <netlist> <output.png>` | Run the circuit and save the waveform as an image |
+| `validate <netlist>` | Check syntax, loops, and conflicting drivers without running |
+| `analyze <netlist>` | Report the critical path, maximum clock frequency, and resources |
+| `truth-table <netlist> [inputs outputs]` | Print a truth table or state table |
+| `equivalent <a> <b> [inputs outputs]` | Compare two circuits and show the first difference |
+| `fault-coverage <netlist>` | Report which stuck-at faults the stimuli detect |
+| `check` | Run the built-in self-check |
+| `guide` | Print the user guide |
+
+Inputs and outputs are comma-separated wire names. They are detected from the circuit when omitted.
+
+A command exits with status 0 on success and 1 on failure, including a failed assertion. `equivalent` exits with status 2 when the circuits differ, which makes these commands suitable for scripts and CI.
+
+## Samples
+
+The [`samples`](samples) folder contains example netlists. Their outputs are in [`samples/waveforms`](samples/waveforms), both as images and as VCD files that open in viewers such as GTKWave.
+
+| Netlist | Demonstrates |
+|---|---|
+| `half_adder.netlist` | Gate-level half adder driven through every input combination |
+| `full_adder.netlist` | Full adder built from a macro |
+| `two_bit_counter.netlist` | Sequential logic with a clock and flip-flops |
+| `dff_test.netlist` | Flip-flop behavior with a stuck-at fault on its input |
+| `testbench.netlist` | Tri-state buffer controlled by stimuli |
+
+Waveform of the two-bit counter:
+
+![Two-bit counter waveform](samples/waveforms/two_bit_counter.png)
+
+Schematic of a two-bit adder built from macros, with its critical path highlighted:
+
+![Schematic with the critical path highlighted](docs/images/desktop-schematic.png)
+
+## Architecture
+
+The desktop application, command line, and browser all run the same engine through `SimulationApplicationService`. The browser version is produced by compiling the Java engine to JavaScript with [TeaVM](https://teavm.org/).
+
+| Package | Responsibility |
+|---|---|
+| `simulator.core` | Wires, pins, signal states, and the base component |
+| `simulator.components` | Gates, flip-flops, clocks, function blocks, and modules |
+| `simulator.engine` | Event queue, timing, truth tables, equivalence, and fault coverage |
+| `simulator.parser` | Netlist parsing, component creation, and topology validation |
+| `simulator.schematic` | Schematic layout and resource counting |
+| `simulator.fault` | Stuck-at fault injection |
+| `simulator.io` | VCD output |
+| `simulator.application` | Shared services, examples, user guide, and self-check |
+| `simulator.gui` | Swing desktop application |
+
+### Design patterns
+
+| Pattern | Where it is used |
+|---|---|
+| Observer | `Wire` notifies its connected `InputPin` objects and the waveform logger when its value changes |
+| Composite | `Module` holds gates and nested modules, forming the macro hierarchy |
+| Factory | `ComponentFactory` creates components from their netlist names |
+| State | `SequentialComponent` delegates its stored value to `MemoryState` implementations |
+| Facade | `SimulationFacade` and `SimulationApplicationService` give clients a small interface to the engine |
+| Dependency injection | `SimulationContext` owns the event engine for one run and is passed to the components that need it, so runs stay independent |
+
+The class and activity diagrams are in [`docs/OOAD_Project_Document_1`](docs/OOAD_Project_Document_1).
+
+## Testing
+
+```shell
+mvn test
+java -cp target/classes simulator.Main check
 node scripts/browser-smoke-test.js
 ```
 
-### Hosting on GitHub Pages
+These run the JUnit suite, the self-check of each major feature, and a test of the compiled browser engine. GitHub Actions runs the build and the browser engine test on every push, and publishes the browser version to GitHub Pages from `main`.
 
-`.github/workflows/pages.yml` builds, tests and publishes the page on every push
-to `main`. To turn it on once, go to the repository's **Settings > Pages** and set
-**Source** to **GitHub Actions**. The page is then published at
-`https://<owner>.github.io/<repository>/`.
+## Known limitations
 
-## Outputs
-
-The simulator validates combinational topology, runs a timestamp-ordered event
-queue, prints simulation telemetry, and writes a VCD waveform. VCD identifiers
-are generated separately from wire names so names containing spaces or special
-characters do not become invalid identifiers.
-
-## Project layout
-
-- `src/simulator/core` — wires, pins, components, and signal observation
-- `src/simulator/components` — gates, clocks, sequential logic, and modules
-- `src/simulator/engine` — event processing and static timing analysis
-- `src/simulator/parser` — netlist parsing, factories, and validation
-- `src/simulator/io` — VCD export
-- `src/simulator/fault` — stuck-at fault injection
-- `test` — JUnit unit and integration-style tests
-
-Generated `.class` files should not be treated as source. Build output should
-be placed in a temporary or ignored directory such as `.build`.
-
-## Object-oriented design
-
-The implementation intentionally uses established object-oriented patterns:
-
-- **Observer** — `Wire` notifies `InputPin` and waveform observers when signals
-  change.
-- **Composite** — `Module` treats nested components as a reusable circuit
-  component and bridges its public pins to internal pins and wires.
-- **State** — `SequentialComponent` delegates memory behavior to
-  `MemoryState` implementations such as `LowState`, `HighState`, and
-  `UnknownState`.
-- **Factory/Registry** — `ComponentFactory` maps netlist type names to
-  registered `ComponentCreator` functions. New component types can be
-  registered without changing the creation switch.
-- **Facade** — `SimulationFacade` and `SimulationRunner` expose a small
-  application boundary for CLI, GUI, and WebAssembly clients.
-- **Dependency Injection** — `SimulationContext` owns the event engine for one
-  run. `SimulationRunner` creates a fresh context per invocation, while
-  components, parsers, and VCD loggers receive that context instead of looking
-  up global state.
-- **Value Object** — `TimingAnalysisResult` and `SimulationResult` carry
-  structured analysis and execution results instead of requiring callers to
-  parse console output.
-- **Strategy seam** — wire driver resolution and timing analysis are isolated
-  behind focused services so their policies can evolve independently.
-
-New functionality should preserve these boundaries. Prefer explicit context
-dependencies and small interfaces over direct global lookups, and add tests
-for each public object contract. Legacy constructors remain available and use
-the default context for compatibility; new application code should create a
-`SimulationContext` per simulation session.
+- Wires carry a single bit. Multi-bit buses and integer truth tables are not supported.
+- Macros form a real hierarchy for structure and display, but simulation runs on the expanded gates.
+- FPGA placement and LUT mapping from the original paper are not implemented.
+- Truth tables allow at most 16 inputs and flip-flops combined.
+- A tri-state bus with no active driver is reported as `X` rather than `Z`.

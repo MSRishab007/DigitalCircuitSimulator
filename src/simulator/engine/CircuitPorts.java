@@ -14,10 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * The externally visible wires of a parsed netlist, in declaration order.
- * Inputs feed a component but have no driver; outputs have a driver but feed nothing.
- */
 public final class CircuitPorts {
     private final List<String> wires = new ArrayList<>();
     private final List<String> inputs = new ArrayList<>();
@@ -82,6 +78,5 @@ public final class CircuitPorts {
     public List<String> getNextStateWires() { return Collections.unmodifiableList(nextStateWires); }
     public List<String> getClockWires() { return Collections.unmodifiableList(clockWires); }
 
-    /** The id of the component driving a wire, or null when the wire has no driver. */
     public String getDriver(String wire) { return drivers.get(wire); }
 }

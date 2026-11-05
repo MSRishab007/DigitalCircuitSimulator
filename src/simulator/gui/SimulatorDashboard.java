@@ -133,7 +133,6 @@ public class SimulatorDashboard extends JFrame {
         setLocationRelativeTo(null);
         getContentPane().setBackground(Color.WHITE);
 
-        // --- Toolbar ---
         ColorButton openBtn = new ColorButton("Open", Theme.BLUE);
         ColorButton saveBtn = new ColorButton("Save", Theme.BLUE);
         ColorButton saveAsBtn = new ColorButton("Save as", Theme.BLUE);
@@ -172,7 +171,6 @@ public class SimulatorDashboard extends JFrame {
         toolbar.add(Ui.row(6, openBtn, saveBtn, saveAsBtn, examples, Ui.gap(16), runBtn, stepBtn, resetBtn),
                 BorderLayout.WEST);
 
-        // --- Editor Pane (Left) ---
         editorArea = new CodeArea(14f, Colorizers::netlist, null, true);
         editorArea.setTabSize(4);
         editorArea.setText(ExampleCircuits.defaultNetlist());
@@ -186,7 +184,6 @@ public class SimulatorDashboard extends JFrame {
         editorPane.add(Ui.sectionHeader("HDL netlist editor", fileLabel), BorderLayout.NORTH);
         editorPane.add(editorScroll, BorderLayout.CENTER);
 
-        // --- Tabbed Pane (Right Side) ---
         JTabbedPane rightTabs = new JTabbedPane();
         rightTabs.setUI(new PlainTabsUI());
         rightTabs.setBackground(Color.WHITE);
@@ -194,13 +191,11 @@ public class SimulatorDashboard extends JFrame {
         rightTabs.setFont(Theme.ui(Font.PLAIN, 13f));
         rightTabs.setBorder(null);
 
-        // Tab 1: Console
         logConsole = new CodeArea(13f, Colorizers::telemetry,
                 "Run a simulation to see its telemetry report here.", false);
         logConsole.setEditable(false);
         rightTabs.addTab("Telemetry log", Ui.scroll(logConsole));
 
-        // Tab 2: Waveform Viewer
         waveformPanel = new WaveformPanel();
         rightTabs.addTab("Waveform viewer", createWaveformTab());
 
@@ -215,12 +210,10 @@ public class SimulatorDashboard extends JFrame {
             }
         });
 
-        // --- Split Pane Layout ---
         JSplitPane splitPane = Ui.split(JSplitPane.HORIZONTAL_SPLIT, editorPane, rightTabs);
         splitPane.setDividerLocation(Math.min(460, getWidth() * 2 / 5));
         splitPane.setResizeWeight(0.35);
 
-        // --- Status bar ---
         JPanel footer = new JPanel(new BorderLayout());
         footer.setBackground(Color.WHITE);
         footer.setBorder(BorderFactory.createCompoundBorder(
@@ -236,7 +229,6 @@ public class SimulatorDashboard extends JFrame {
         add(splitPane, BorderLayout.CENTER);
         add(footer, BorderLayout.SOUTH);
 
-        // --- Action Listeners ---
         openBtn.addActionListener(e -> openFile());
         saveBtn.addActionListener(e -> saveFile(false));
         saveAsBtn.addActionListener(e -> saveFile(true));
@@ -284,7 +276,6 @@ public class SimulatorDashboard extends JFrame {
         });
     }
 
-    /** JTextArea.read() replaces the document, so these listeners move to the new one. */
     private void watchEditor() {
         DocumentListener changes = new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) { editorChanged(); }
@@ -314,7 +305,6 @@ public class SimulatorDashboard extends JFrame {
                 caretLabel.setText("Ln " + (line + 1) + ", Col "
                         + (offset - editorArea.getLineStartOffset(line) + 1));
             } catch (BadLocationException ignored) {
-                // The caret is moving between documents; the next event corrects the readout.
             }
         });
 
@@ -344,7 +334,6 @@ public class SimulatorDashboard extends JFrame {
     private void editorChanged() {
         setDirty(true);
         clearErrorHighlight();
-        // A step-through session belongs to the netlist it started from, so an edit ends it.
         if (debugger != null) {
             debugger = null;
             debugLogger = null;
@@ -383,7 +372,6 @@ public class SimulatorDashboard extends JFrame {
         activityLabel.setForeground(color);
     }
 
-    /** Selects a line the parser reported as wrong and marks it until the next edit. */
     private void highlightErrorLine(String message) {
         clearErrorHighlight();
         if (message == null) {
@@ -403,7 +391,6 @@ public class SimulatorDashboard extends JFrame {
                     new DefaultHighlighter.DefaultHighlightPainter(Theme.ERROR_BAND));
             editorArea.setCaretPosition(start);
         } catch (BadLocationException | NumberFormatException ignored) {
-            // The message pointed outside this text, so there is nothing to mark.
         }
     }
 
@@ -569,7 +556,6 @@ public class SimulatorDashboard extends JFrame {
         return tab;
     }
 
-    /** Redraws the schematic from the editor. Parsing resets shared engine state, so it waits for running work. */
     private void refreshSchematic() {
         if (busy) {
             schematicTimer.restart();
@@ -611,7 +597,6 @@ public class SimulatorDashboard extends JFrame {
                 : "Run a simulation to see wire values");
     }
 
-    /** Moves the schematic to a time after a run or step, whether or not its tab is open. */
     private void scrubTo(long time) {
         updatingSlider = true;
         timeSlider.setMaximum((int) Math.min(Integer.MAX_VALUE, waveformPanel.getMaxTime()));
@@ -803,7 +788,6 @@ public class SimulatorDashboard extends JFrame {
         return panel;
     }
 
-    /** Runs analysis work off the event thread, with the action buttons off until it finishes. */
     private <T> void runTask(String activity, Callable<T> work, Consumer<T> onSuccess, String failurePrefix) {
         setBusy(true);
         setActivity(activity, Theme.MUTED);
@@ -843,10 +827,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    /**
-     * Uses the wires typed in the fields when they exist in this netlist. When none of them do,
-     * the fields still describe a previous netlist, so the wires are detected instead.
-     */
     private WireChoice chooseWires(String netlist, List<String> inputs, List<String> outputs) {
         CircuitPorts ports = service.detectPorts(netlist);
         Set<String> typed = new LinkedHashSet<>(inputs);
@@ -1031,7 +1011,6 @@ public class SimulatorDashboard extends JFrame {
                 .toList();
     }
 
-    /** Builds the chooser under the platform look and feel, so the dialog looks native. */
     private static JFileChooser newChooser() {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
@@ -1043,7 +1022,6 @@ public class SimulatorDashboard extends JFrame {
             try {
                 UIManager.setLookAndFeel(previous);
             } catch (UnsupportedLookAndFeelException ignored) {
-                // The previous look and feel was already in use, so it stays supported.
             }
         }
     }
@@ -1075,12 +1053,10 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    /** Matches the analysis fields to a newly opened netlist. A netlist with errors keeps the old values. */
     private void detectWiresQuietly() {
         try {
             applyDetectedWires(service.detectPorts(editorArea.getText()));
         } catch (RuntimeException ignored) {
-            // Running or analyzing this netlist reports the same error with its line number.
         }
     }
 
@@ -1301,10 +1277,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    // ---------------------------------------------------------------------
-    // Colours and fonts
-    // ---------------------------------------------------------------------
-
     private static final class Theme {
         static final Color TEXT = new Color(0x1F2328);
         static final Color MUTED = new Color(0x5F6770);
@@ -1361,10 +1333,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    // ---------------------------------------------------------------------
-    // Layout helpers
-    // ---------------------------------------------------------------------
-
     private static final class Ui {
         private Ui() { }
 
@@ -1375,7 +1343,6 @@ public class SimulatorDashboard extends JFrame {
             return label;
         }
 
-        /** A vertically centred row with gaps only between its items. */
         static JPanel row(int gap, Component... items) {
             JPanel panel = new JPanel(new GridBagLayout());
             panel.setOpaque(false);
@@ -1445,11 +1412,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    // ---------------------------------------------------------------------
-    // Components
-    // ---------------------------------------------------------------------
-
-    /** A flat, solid-colour button. */
     private static final class ColorButton extends JButton {
         private final Color fill;
 
@@ -1537,7 +1499,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    /** A JTextArea with per-token colour, a current-line band and an empty-state hint. */
     private static final class CodeArea extends JTextArea {
         private final String placeholder;
         private final boolean bandCurrentLine;
@@ -1571,7 +1532,6 @@ public class SimulatorDashboard extends JFrame {
                         graphics.fillRect(0, (int) caret.getY(), getWidth(), (int) caret.getHeight());
                     }
                 } catch (BadLocationException ignored) {
-                    // No band for this frame; the caret is moving between documents.
                 }
             }
             if (graphics instanceof Graphics2D) {
@@ -1593,7 +1553,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    /** Colours are computed at paint time, so the document stays plain and read()/write() behave as usual. */
     private static final class ColorizedTextUI extends BasicTextAreaUI {
         private final Function<String, Color[]> colorizer;
 
@@ -1656,7 +1615,6 @@ public class SimulatorDashboard extends JFrame {
 
         private Colorizers() { }
 
-        /** Directives in blue, other leading keywords (gate types) in teal, numbers in orange, comments in grey. */
         static Color[] netlist(String line) {
             Color[] colors = new Color[line.length()];
             Arrays.fill(colors, Theme.TEXT);
@@ -1688,7 +1646,6 @@ public class SimulatorDashboard extends JFrame {
             return colors;
         }
 
-        /** Failures in red, section markers in blue, rules faint, report labels muted. */
         static Color[] telemetry(String line) {
             Color[] colors = new Color[line.length()];
             Color base = Theme.TEXT;
@@ -1760,7 +1717,6 @@ public class SimulatorDashboard extends JFrame {
             try {
                 current = area.getLineOfOffset(area.getCaretPosition());
             } catch (BadLocationException ignored) {
-                // Falls back to the first line for this frame.
             }
             int first = Math.max(0, (clip.y - top) / lineHeight);
             int last = Math.min(area.getLineCount() - 1, (clip.y + clip.height - top) / lineHeight);
@@ -1773,10 +1729,6 @@ public class SimulatorDashboard extends JFrame {
             g.dispose();
         }
     }
-
-    // ---------------------------------------------------------------------
-    // Look-and-feel delegates
-    // ---------------------------------------------------------------------
 
     private static final class PlainScrollBarUI extends BasicScrollBarUI {
         @Override
@@ -1828,7 +1780,6 @@ public class SimulatorDashboard extends JFrame {
         }
     }
 
-    /** A flat track and thumb, in place of the default shaded slider. */
     private static final class PlainSliderUI extends javax.swing.plaf.basic.BasicSliderUI {
         PlainSliderUI(JSlider slider) {
             super(slider);
@@ -1858,7 +1809,6 @@ public class SimulatorDashboard extends JFrame {
 
         @Override
         public void paintFocus(Graphics g) {
-            // The slider takes no keyboard focus in this window.
         }
     }
 
@@ -1887,7 +1837,6 @@ public class SimulatorDashboard extends JFrame {
     }
 
     private static final class PlainTabsUI extends BasicTabbedPaneUI {
-        /** Matches the editor section header, so the two rules form one line across the window. */
         private static final int TAB_HEIGHT = 36;
 
         @Override

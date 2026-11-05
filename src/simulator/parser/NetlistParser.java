@@ -34,7 +34,6 @@ public class NetlistParser {
         this.simulationContext = simulationContext;
     }
 
-    // Internal class to hold Macro Blueprints
     private static class MacroDef {
         String name;
         List<String> ports = new ArrayList<>();
@@ -79,7 +78,6 @@ private void parseReader(BufferedReader reader) throws IOException {
         String command = tokens[0].toUpperCase();
 
         try {
-            // --- MACRO RECORDING MODE ---
             if (command.equals("DEF")) {
                 requireLength(tokens, 3, lineNumber, "DEF <name> <ports...>");
                 if (currentMacro != null) {
@@ -103,7 +101,6 @@ private void parseReader(BufferedReader reader) throws IOException {
                 continue;
             }
 
-            // --- STANDARD EXECUTION MODE ---
             if (command.equals("SIM_TIME")) {
                 requireLength(tokens, 2, lineNumber, "SIM_TIME <nanoseconds>");
                 simulationContext.getEventEngine().setMaxSimulationTime(Long.parseLong(tokens[1]));
@@ -126,7 +123,6 @@ private void parseReader(BufferedReader reader) throws IOException {
                 requireLength(tokens, 3, lineNumber, "FAULT <STUCK_AT_0|STUCK_AT_1> <wire>");
                 String type = tokens[1].toUpperCase();
                 Wire target = getWire(tokens[2]);
-                // Applied after parsing, so gates declared below this line still see the fault.
                 if (type.equals("STUCK_AT_0")) faults.add(() -> FaultInjector.stuckAtZero(target));
                 else if (type.equals("STUCK_AT_1")) faults.add(() -> FaultInjector.stuckAtOne(target));
                 else throw new IllegalArgumentException("Unsupported fault type: " + type);
@@ -157,8 +153,6 @@ private void parseReader(BufferedReader reader) throws IOException {
         throw new IllegalArgumentException("Missing ENDDEF for macro: " + currentMacro.name);
     }
     faults.forEach(Runnable::run);
-    // Flip-flops start in a known state, so their outputs must show it from the start.
-    // Otherwise feedback circuits such as counters only ever see an unknown value.
     for (DigitalComponent component : components) {
         if (component instanceof simulator.components.SequentialComponent
                 || component instanceof simulator.components.FunctionalBlock) {

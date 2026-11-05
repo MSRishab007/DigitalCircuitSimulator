@@ -33,11 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Turns a parsed netlist into a left-to-right drawing: signals flow through columns, and wires
- * run horizontally through columns and vertically in the channels between them.
- * Wires that loop back, such as flip-flop feedback, run along lanes underneath the circuit.
- */
 public final class SchematicLayout {
     public enum Kind { INPUT, OUTPUT, AND, OR, NOT, NAND, NOR, XOR, XNOR, FUNC, MODULE, BUFFER, DFF, CLOCK, BUS, OTHER, ROUTE }
 
@@ -50,7 +45,6 @@ public final class SchematicLayout {
     private static final int LABEL_CHAR_WIDTH = 6;
     private static final int PIN_SPACING = 24;
 
-    /** A point on the drawing. Kept free of java.awt so the browser build can use this class. */
     public static final class Point {
         public final int x;
         public final int y;
@@ -150,7 +144,6 @@ public final class SchematicLayout {
         }
     }
 
-    /** One net's share of a channel: where it enters, where it leaves, and its vertical track. */
     private static final class ChannelEntry {
         final Net net;
         Integer sourceY;
@@ -417,7 +410,6 @@ public final class SchematicLayout {
         return Kind.OTHER;
     }
 
-    /** Places each node one column after its furthest source, ignoring edges that close a loop. */
     private void assignLayers() {
         Map<Node, List<Node>> successors = new IdentityHashMap<>();
         Map<Node, Integer> incoming = new IdentityHashMap<>();
@@ -511,7 +503,6 @@ public final class SchematicLayout {
         done.add(node);
     }
 
-    /** Adds a pass-through point in each column a wire crosses, so the wire gets a clear path. */
     private void addRoutes() {
         int layerCount = 0;
         for (Node node : nodes) {
@@ -551,7 +542,6 @@ public final class SchematicLayout {
         to.previous.add(from);
     }
 
-    /** Reorders columns so that connected nodes sit near each other, which reduces crossings. */
     private void orderLayers() {
         renumber();
         for (int sweep = 0; sweep < 8; sweep++) {
@@ -565,7 +555,6 @@ public final class SchematicLayout {
     }
 
     private void sortByNeighbours(List<Node> layer, boolean usePrevious) {
-        // The inputs stay in the order they were declared.
         if (layer.stream().anyMatch(node -> node.kind == Kind.INPUT)) {
             return;
         }
@@ -653,7 +642,6 @@ public final class SchematicLayout {
             }
         }
 
-        // Channel n sits after column n; channel -1 sits before the first column.
         List<Map<Net, ChannelEntry>> channels = new ArrayList<>();
         for (int i = 0; i <= layers.size(); i++) {
             channels.add(new LinkedHashMap<>());
@@ -716,7 +704,6 @@ public final class SchematicLayout {
         return channels.get(channel + 1).computeIfAbsent(net, ChannelEntry::new);
     }
 
-    /** Gives each net a vertical track, keeping horizontal runs at the same height from overlapping. */
     private static int assignTracks(Map<Net, ChannelEntry> channel, int startX, List<Node> leftColumn) {
         int labelSpace = 0;
         List<ChannelEntry> pending = new ArrayList<>();
@@ -736,7 +723,6 @@ public final class SchematicLayout {
             for (ChannelEntry candidate : pending) {
                 boolean blocked = false;
                 for (ChannelEntry other : pending) {
-                    // A net entering at this height must turn off before another net leaves at it.
                     blocked |= other != candidate && other.sourceY != null
                             && candidate.targetYs.contains(other.sourceY);
                 }

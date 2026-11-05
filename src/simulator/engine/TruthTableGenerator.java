@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class TruthTableGenerator {
-    /** Testbench lines describe one run, so they do not apply when every input combination is tried. */
     private static final List<String> TESTBENCH_COMMANDS = List.of("STIMULUS", "ASSERT", "SIM_TIME");
 
     private final int maximumInputs;
@@ -112,10 +111,6 @@ public final class TruthTableGenerator {
         return ports;
     }
 
-    /**
-     * Blanks testbench lines instead of removing them, so error line numbers still match the netlist.
-     * Reads lines with BufferedReader because the browser build's regex engine rejects the \\R pattern.
-     */
     private static String removeTestbench(String netlist) {
         StringBuilder result = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new StringReader(netlist))) {

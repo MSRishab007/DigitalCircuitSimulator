@@ -15,9 +15,6 @@ import simulator.engine.SimulationContext;
 
 import java.util.List;
 
-/**
- * Application boundary shared by CLI, GUI, and WebAssembly clients.
- */
 public final class SimulationApplicationService {
     public SimulationRunner.SimulationResult simulate(String netlist, String waveformPath) {
         return new SimulationRunner().runString(netlist, waveformPath);
@@ -43,7 +40,6 @@ public final class SimulationApplicationService {
         return new StaticTimingAnalyzer().analyze(parser.getComponents());
     }
 
-    /** Finds the wires a netlist leaves undriven (inputs) and unread (outputs). */
     public CircuitPorts detectPorts(String netlist) {
         return new CircuitPorts(parse(netlist));
     }

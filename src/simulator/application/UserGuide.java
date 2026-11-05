@@ -72,7 +72,7 @@ public final class UserGuide {
             default:
                 sink.steps("Build the project with `mvn clean package`.",
                         "Run `java -cp target/classes simulator.Main check` to confirm that everything works.",
-                        "Run `java -cp target/classes simulator.Main simulate half_adder.netlist output.vcd`.");
+                        "Run `java -cp target/classes simulator.Main simulate samples/half_adder.netlist output.vcd`.");
                 break;
         }
     }
@@ -238,12 +238,13 @@ public final class UserGuide {
         sink.code("java -cp target/classes simulator.Main check");
         sink.paragraph("It runs built-in test circuits through every feature and prints PASS or FAIL for each one. Its exit status is 0 only if all of them pass, so scripts and CI can use it too.");
         sink.table(new String[]{"Command", "What it does"},
-                new String[]{"`simulate circuit.netlist out.vcd`", "Runs the circuit, writes the waveform, and prints a truth table when the circuit is small enough."},
+                new String[]{"`simulate circuit.netlist out.vcd`", "Runs the circuit, writes the waveform as a VCD file for viewers such as GTKWave, and prints a truth table when the circuit is small enough."},
                 new String[]{"`validate circuit.netlist`", "Checks the syntax, loops and shared output wires without running."},
                 new String[]{"`analyze circuit.netlist`", "Prints the critical path and its delay, the maximum clock frequency and the resources."},
                 new String[]{"`truth-table circuit.netlist`", "Prints a truth table or state table. Add `A,B Sum,Carry` to choose the wires."},
                 new String[]{"`equivalent a.netlist b.netlist`", "Prints EQUIVALENT, or NOT_EQUIVALENT with the first row that differs."},
                 new String[]{"`fault-coverage circuit.netlist`", "Prints how many stuck-at faults your stimuli detect, and lists the rest."},
+                new String[]{"`waveform-image circuit.netlist wave.png`", "Runs the circuit and saves its waveform as a picture."},
                 new String[]{"`check`", "Runs the self-check."},
                 new String[]{"`guide`", "Prints this guide."},
                 new String[]{"`help`", "Lists the commands."});

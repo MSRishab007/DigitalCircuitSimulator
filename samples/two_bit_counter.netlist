@@ -1,0 +1,14 @@
+# Counts 00, 01, 10, 11 on each rising clock edge
+SIM_TIME 200
+
+WIRE CLK
+WIRE D0
+WIRE Q0
+WIRE D1
+WIRE Q1
+
+CLOCK master 20 CLK
+DFF f0 2 D0 CLK Q0
+NOT n0 1 Q0 D0
+DFF f1 2 D1 CLK Q1
+XOR x1 1 Q0 Q1 D1

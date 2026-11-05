@@ -45,7 +45,6 @@ public class SignalEvent implements Comparable<SignalEvent> {
 
     @Override
     public int compareTo(SignalEvent other) {
-        // This ensures events are processed in chronological order
         int timeComparison = Long.compare(this.executionTime, other.executionTime);
         return timeComparison != 0 ? timeComparison : Long.compare(this.sequence, other.sequence);
     }

@@ -19,7 +19,6 @@ public final class TruthTable {
     public List<String> getOutputs() { return Collections.unmodifiableList(outputs); }
     public List<Row> getRows() { return Collections.unmodifiableList(rows); }
 
-    /** Renders the table with each value lined up under its wire name. */
     public String toText() {
         StringBuilder text = new StringBuilder();
         appendColumns(text, inputs, inputs);

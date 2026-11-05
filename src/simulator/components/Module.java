@@ -105,8 +105,6 @@ public class Module extends DigitalComponent {
 
     @Override
     public void evaluate() {
-        // The simulation engine simply calls the evaluation method on any given component
-        // The Composite pattern cascades this evaluation to all internal structural children
         for (DigitalComponent component : internalComponents) {
             component.evaluate();
         }

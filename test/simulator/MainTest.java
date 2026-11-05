@@ -54,6 +54,18 @@ class MainTest {
     }
 
     @Test
+    void savesTheWaveformAsAnImage() throws Exception {
+        String netlist = write("a.netlist", AND_NETLIST + "STIMULUS 0 A 1\nSTIMULUS 0 B 1\n");
+        Path image = folder.resolve("a.png");
+
+        assertEquals(0, Main.run(new String[]{"waveform-image", netlist, image.toString()}));
+
+        java.awt.image.BufferedImage picture = javax.imageio.ImageIO.read(image.toFile());
+        assertTrue(picture.getWidth() >= 1000);
+        assertTrue(picture.getHeight() > 100);
+    }
+
+    @Test
     void warnsWhenNothingDrivesTheCircuit() throws Exception {
         String netlist = write("a.netlist", AND_NETLIST);
 
