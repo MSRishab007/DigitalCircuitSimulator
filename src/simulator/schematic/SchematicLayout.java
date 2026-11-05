@@ -288,7 +288,7 @@ public final class SchematicLayout {
         for (Net net : nets) {
             for (Sink sink : net.sinks) {
                 successors.get(net.source).add(sink.node);
-                incoming.merge(sink.node, 1, Integer::sum);
+                incoming.merge(sink.node, 1, (a, b) -> a + b);
             }
         }
 
@@ -315,7 +315,7 @@ public final class SchematicLayout {
         for (Node node : nodes) {
             for (Node successor : successors.get(node)) {
                 if (!isLoopEdge(loopEdges, node, successor)) {
-                    remaining.merge(successor, 1, Integer::sum);
+                    remaining.merge(successor, 1, (a, b) -> a + b);
                 }
             }
         }
@@ -330,7 +330,7 @@ public final class SchematicLayout {
             for (Node successor : successors.get(node)) {
                 if (!isLoopEdge(loopEdges, node, successor)) {
                     successor.layer = Math.max(successor.layer, node.layer + 1);
-                    if (remaining.merge(successor, -1, Integer::sum) == 0) {
+                    if (remaining.merge(successor, -1, (a, b) -> a + b) == 0) {
                         ready.add(successor);
                     }
                 }
