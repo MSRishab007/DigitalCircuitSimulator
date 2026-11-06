@@ -74,7 +74,8 @@ The remaining fault holds the clock at 1, which makes the flip-flop outputs unkn
 \end{figure}
 
 Figure~\ref{fig:wavetri} presents a tri-state buffer that drives a memory bus.
-The bus shows Z while the buffer is disabled, and it follows the data line while the buffer is enabled.
+The bus starts as X and shows Z once the disabled buffer has passed its 5 ns delay.
+It then follows the data line while the enable input is 1 and returns to Z when the enable input falls to 0.
 The inverter reads the disconnected bus as X, which matches the rule that a gate cannot determine a value from a floating input.
 
 \begin{figure}[H]

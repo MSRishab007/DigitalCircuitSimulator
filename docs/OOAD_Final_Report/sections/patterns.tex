@@ -78,4 +78,5 @@ Truth table generation, equivalence checking, and fault coverage each run many s
 This project therefore replaced the shared instance with Dependency Injection, in which an object receives the objects it needs from outside \refFowler{}.
 Each run creates a \texttt{SimulationContext}, which owns one \texttt{EventEngine} and the assertions of that run.
 The parser passes this context to every component that it creates.
-A default shared context remains in the code for constructors that receive no context, and the application services do not use it.
+A default shared context remains in the code for constructors that receive no context.
+This default context wraps the original shared \texttt{EventEngine} instance, and the application services do not use it.
