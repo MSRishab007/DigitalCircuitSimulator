@@ -1,0 +1,46 @@
+\section{Submitted Files}
+
+Table~\ref{tab:files} describes the main folders and files of the submission.
+The same files are available in the public source code repository at \url{https://github.com/MSRishab007/DigitalCircuitSimulator}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Main folders and files of the submission}
+\label{tab:files}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{10.4cm}}
+\toprule
+\textbf{Path} & \textbf{Contents} \\
+\midrule
+\texttt{src/simulator} & Java source code of the engine, the parser, the analyses, and the interfaces \\
+\texttt{test/simulator} & JUnit test cases \\
+\texttt{index.html} & Browser interface \\
+\texttt{pom.xml} & Maven build configuration \\
+\texttt{samples} & Sample input netlists \\
+\texttt{samples/waveforms} & Sample outputs as VCD files and as PNG images \\
+\texttt{docs} & Project documents and UML diagrams \\
+\texttt{README.md} & Overview, build steps, and netlist reference \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:samples} lists the sample inputs and their outputs.
+Each output in \texttt{samples/waveforms} has the same name as its input netlist.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Sample inputs and outputs}
+\label{tab:samples}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{10.4cm}}
+\toprule
+\textbf{Input netlist} & \textbf{Circuit and behavior} \\
+\midrule
+\texttt{half\_adder.netlist} & Gate-level half adder that receives every input combination \\
+\texttt{full\_adder.netlist} & Full adder built from macros \\
+\texttt{two\_bit\_counter.netlist} & Two-bit counter with a clock and two flip-flops \\
+\texttt{dff\_test.netlist} & Flip-flop with a stuck-at fault on its input \\
+\texttt{testbench.netlist} & Tri-state buffer that drives and releases a bus \\
+\bottomrule
+\end{tabular}
+\end{table}

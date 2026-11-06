@@ -1,0 +1,61 @@
+\section{Software and Hardware Requirements}
+
+\subsection{Software Requirements}
+
+Table~\ref{tab:software} lists the software that each way of running the system requires.
+The browser version on the hosted website needs only a web browser.
+Building the desktop application and the command line tool requires a Java Development Kit and Apache Maven.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Software requirements}
+\label{tab:software}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}p{7.4cm}}
+\toprule
+\textbf{Software} & \textbf{Version} & \textbf{Purpose} \\
+\midrule
+Java Development Kit & 21 or newer & Compiles and runs the desktop application and the command line tool \\
+Apache Maven & 3 & Builds the project, downloads the libraries, and runs the tests \\
+Web browser & Current version & Runs the browser application \\
+Git & Any & Downloads the source code, as an alternative to a ZIP file \\
+Python & 3 & Serves the browser version locally, which is optional \\
+GTKWave & Any & Opens exported VCD waveform files, which is optional \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Maven downloads the libraries in Table~\ref{tab:libraries} during the first build.
+The first build therefore needs an internet connection.
+Later builds use the downloaded copies.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Libraries that Maven downloads}
+\label{tab:libraries}
+\begin{tabular}{llp{8.2cm}}
+\toprule
+\textbf{Library} & \textbf{Version} & \textbf{Purpose} \\
+\midrule
+TeaVM & 0.10.2 & Translates the Java engine to JavaScript for the browser version \\
+JUnit Jupiter & 5.10.0 & Runs the automated tests \\
+JaCoCo & 0.8.14 & Measures the test coverage \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The system runs on Windows, macOS, and Linux, because both Java and the browser version are platform independent.
+The automated build on GitHub Actions uses Ubuntu Linux with Java 21.
+The browser checks used the Chromium browser.
+
+\subsection{Hardware Requirements}
+
+The system needs no special hardware.
+It runs on an ordinary desktop or laptop computer that can run Java 21 or a current web browser.
+It needs no FPGA board, logic analyzer, or other electronic equipment, because it simulates every circuit in software.
+A display with a resolution of at least 1280 by 720 pixels shows the desktop and browser interfaces without crowding.
+
+The project did not measure a minimum memory or processor requirement.
+For reference, the performance measurements in the final report ran on a virtual machine with two processors at 2.10 GHz.
+On that machine, the engine processed more than one million events per second.

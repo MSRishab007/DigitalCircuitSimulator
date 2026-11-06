@@ -1,0 +1,30 @@
+\section{Object-Oriented Programming Language}
+
+The project uses Java as its object-oriented programming language.
+The source code targets Java 21, and the build sets this version through the Maven compiler release option.
+Java provides classes, interfaces, abstract classes, inheritance, and polymorphism, which the design of the simulator relies on.
+Table~\ref{tab:oo} links these language features to the parts of the system that use them.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Java language features and their use in the system}
+\label{tab:oo}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{10.8cm}}
+\toprule
+\textbf{Language feature} & \textbf{Use in the system} \\
+\midrule
+Abstract classes & \texttt{DigitalComponent} and \texttt{LogicGate} define the shared behavior of all components and gates. \\
+Inheritance & Each gate, such as \texttt{AndGate}, extends \texttt{LogicGate} and implements only its own Boolean function. \\
+Interfaces & \texttt{SignalObserver}, \texttt{MemoryState}, and \texttt{ComponentCreator} support the Observer, State, and Factory Method patterns. \\
+Polymorphism & The engine calls \texttt{evaluate} on any component without knowledge of its concrete class. \\
+Enumerations & \texttt{VoltageState} represents the four signal values 0, 1, X, and Z. \\
+Encapsulation & Each \texttt{Wire} hides its list of drivers and observers behind a small set of methods. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The desktop interface uses Java Swing, which is part of the standard Java platform.
+The browser version runs the same Java engine after the TeaVM compiler translates it to JavaScript.
+A single HTML page, \texttt{index.html}, provides the browser interface.
+The project writes no simulation logic in JavaScript.

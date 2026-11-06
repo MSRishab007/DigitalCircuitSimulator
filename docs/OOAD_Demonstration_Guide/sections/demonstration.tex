@@ -1,0 +1,188 @@
+\section{How to View the Demonstration}
+\label{sec:demo}
+
+The demonstration can be viewed in three different ways.
+The first way uses the hosted browser version and needs no installation.
+The second way uses the desktop application, and the third way uses the command line tool.
+Both of these need the build described in Section~\ref{sec:build}.
+
+\subsection{Method 1. Browser Application}
+\label{sec:browser}
+
+The browser version runs the complete simulator inside the web browser, and it needs no server or installation.
+
+\begin{enumerate}
+\item Open \url{https://msrishab007.github.io/DigitalCircuitSimulator/} in a web browser.
+\item Wait until the status bar reports that the engine is ready. The editor opens with an example circuit, as Figure~\ref{fig:browserhome} shows.
+\item Choose an example from the \textbf{Load example} list, or type a netlist in the editor.
+\item Select \textbf{Run simulation}. The Telemetry log tab reports the events processed, the critical path, and the result of each assertion.
+\item Open the \textbf{Waveform viewer} tab to see the signals over time, as Figure~\ref{fig:browserwave} shows.
+\item Open the \textbf{Schematic}, \textbf{Analysis}, and \textbf{How to use} tabs to see the circuit diagram, the analyses, and the user guide.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\screenshot{browser-home.png}{\textwidth}
+\caption{Browser application after it loads}
+\label{fig:browserhome}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\screenshot{browser-waveform.png}{\textwidth}
+\caption{Waveform viewer in the browser application}
+\label{fig:browserwave}
+\end{figure}
+
+The browser version can also run from the local copy of the source code.
+This requires the build in Section~\ref{sec:build}, because the build creates the JavaScript engine.
+The following commands serve the project folder, after which the page opens at \url{http://localhost:8000/}.
+
+\begin{lstlisting}
+cd DigitalCircuitSimulator
+python -m http.server 8000
+\end{lstlisting}
+
+\subsection{Building the Project}
+\label{sec:build}
+
+The desktop application and the command line tool run from compiled classes.
+The following commands download the source code and build the project.
+
+\begin{lstlisting}
+git clone https://github.com/MSRishab007/DigitalCircuitSimulator.git
+cd DigitalCircuitSimulator
+mvn clean package
+\end{lstlisting}
+
+The build compiles the code, runs the automated tests, measures coverage, and creates the browser engine.
+A successful build ends with the message \texttt{BUILD SUCCESS}, as Figure~\ref{fig:build} shows.
+The submitted source code folder can replace the \texttt{git clone} step.
+
+\begin{figure}[H]
+\centering
+\screenshot{terminal-build.png}{\textwidth}
+\caption{End of a successful Maven build}
+\label{fig:build}
+\end{figure}
+
+\subsection{Method 2. Desktop Application}
+\label{sec:desktop}
+
+The desktop application offers the same features as the browser version in a Java Swing window.
+The following command starts it from the project folder.
+
+\begin{lstlisting}
+java -cp target/classes simulator.gui.SimulatorDashboard
+\end{lstlisting}
+
+\begin{enumerate}
+\item Choose an example from the \textbf{Load example} list, as Figure~\ref{fig:desktophome} shows. The editor on the left shows its netlist.
+\item Select \textbf{Run simulation}. The Telemetry log tab reports the run.
+\item Open the \textbf{Waveform viewer} tab. Figure~\ref{fig:desktopwave} shows the waveform of the two-bit counter.
+\item Open the \textbf{Schematic} tab. The time slider colors each wire by its value. The \textbf{Collapse macros} and \textbf{Show critical path} options change the drawing, as Figure~\ref{fig:desktopschematic} shows.
+\item Open the \textbf{Analysis} tab and select \textbf{Generate truth table}, \textbf{Analyze timing}, or \textbf{Fault coverage}. Figure~\ref{fig:desktopanalysis} shows an example.
+\item Open the \textbf{How to use} tab to read the guide to the netlist language, as Figure~\ref{fig:desktopguide} shows.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\screenshot{desktop-home.png}{\textwidth}
+\caption{Desktop application with the example list}
+\label{fig:desktophome}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\screenshot{desktop-waveform.png}{\textwidth}
+\caption{Waveform viewer in the desktop application}
+\label{fig:desktopwave}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\screenshot{desktop-schematic.png}{\textwidth}
+\caption{Schematic tab with the critical path highlighted}
+\label{fig:desktopschematic}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\screenshot{desktop-analysis.png}{\textwidth}
+\caption{Analysis tab in the desktop application}
+\label{fig:desktopanalysis}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\screenshot{desktop-guide.png}{\textwidth}
+\caption{User guide in the desktop application}
+\label{fig:desktopguide}
+\end{figure}
+
+\subsection{Method 3. Command Line Tool}
+\label{sec:cli}
+
+The command line tool runs each operation as a separate command from the project folder.
+The following command runs the half adder sample and writes its waveform to a VCD file.
+
+\begin{lstlisting}
+java -cp target/classes simulator.Main simulate samples/half_adder.netlist half_adder.vcd
+\end{lstlisting}
+
+The tool prints the progress of the run and the truth table of the circuit.
+
+\begin{lstlisting}
+1. Loading netlist: samples/half_adder.netlist
+2. Validating topology...
+3. Initializing simulation clock at zero...
+4. Executing discrete event loop...
+5. Generating output waveform...
+Simulation complete. Processed 25 events.
+Waveform written to half_adder.vcd
+Truth table:
+A B | Carry Sum
+0 0 | 0     0
+0 1 | 0     1
+1 0 | 0     1
+1 1 | 1     0
+\end{lstlisting}
+
+Table~\ref{tab:commands} lists the other commands.
+Each command takes the same \texttt{java -cp target/classes simulator.Main} prefix.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Commands of the command line tool}
+\label{tab:commands}
+\begin{tabular}{>{\raggedright\arraybackslash}p{6.6cm}>{\raggedright\arraybackslash}p{8.4cm}}
+\toprule
+\textbf{Command} & \textbf{Result} \\
+\midrule
+\texttt{simulate <netlist> [output.vcd]} & Runs the circuit and writes the waveform \\
+\texttt{waveform-image <netlist> <output.png>} & Saves the waveform as an image \\
+\texttt{validate <netlist>} & Checks the netlist without running it \\
+\texttt{analyze <netlist>} & Reports the critical path and the maximum clock frequency \\
+\texttt{truth-table <netlist>} & Prints the truth table or state table \\
+\texttt{equivalent <first> <second>} & Compares two circuits \\
+\texttt{fault-coverage <netlist>} & Reports the stuck-at faults that the stimuli detect \\
+\texttt{check} & Runs the built-in self-check \\
+\texttt{guide} & Prints the user guide \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The \texttt{check} command runs 22 end-to-end checks of the main features, as Figure~\ref{fig:check} shows.
+It offers the quickest way to confirm that a build works.
+
+\begin{lstlisting}
+java -cp target/classes simulator.Main check
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\screenshot{terminal-check.png}{\textwidth}
+\caption{Output of the self-check command}
+\label{fig:check}
+\end{figure}
