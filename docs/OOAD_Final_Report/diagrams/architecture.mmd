@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph presentation["Presentation layer"]
+        direction TB
+        gui["simulator.gui<br/>Swing desktop application"]
+        cli["simulator.Main<br/>Command line tool"]
+        web["simulator.WasmBridge and index.html<br/>Browser application"]
+    end
+    subgraph application["Application layer"]
+        direction TB
+        service["simulator.application<br/>Shared services, examples, guide, self-check"]
+    end
+    subgraph analysis["Parsing and analysis layer"]
+        direction TB
+        parser["simulator.parser<br/>Netlist parsing, validation, run control"]
+        engineAnalysis["simulator.engine<br/>Event engine, timing, truth tables, coverage"]
+        schematic["simulator.schematic<br/>Schematic layout, resource counts"]
+    end
+    subgraph domain["Domain model layer"]
+        direction TB
+        components["simulator.components<br/>Gates, flip-flops, clocks, modules"]
+        core["simulator.core<br/>Wires, pins, signal values"]
+        faultIo["simulator.fault and simulator.io<br/>Fault injection, VCD output"]
+    end
+    presentation --> application
+    application --> analysis
+    analysis --> domain
+    classDef box fill:#ffffff,stroke:#1f2328,color:#1f2328
+    class gui,cli,web,service,parser,engineAnalysis,schematic,components,core,faultIo box
+    style presentation fill:#f5f6f8,stroke:#1f2328
+    style application fill:#f5f6f8,stroke:#1f2328
+    style analysis fill:#f5f6f8,stroke:#1f2328
+    style domain fill:#f5f6f8,stroke:#1f2328

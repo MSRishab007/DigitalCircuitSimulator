@@ -1,1 +1,21 @@
 \section{Summary and Conclusion}
+\label{sec:conclusion}
+
+This project set out to implement the object-oriented circuit models of Dezan, Lagadec, and Pottier \refDezan{} and to extend them with timing and fault analysis.
+The resulting Java system simulates combinational, sequential, and hierarchical circuits from text netlists.
+It adds a discrete-event engine, static timing analysis, fault coverage, and assertions.
+A desktop application, a command line tool, and a browser application all use the same engine.
+
+The evaluation supports three observations.
+First, the sample results agree with the expected behavior of the circuits, including their truth tables and state tables.
+Second, the JUnit suite covers 91.3 percent of the source lines outside the desktop interface.
+The engine also processed more than one million events per second in the measured configuration.
+Third, Dependency Injection keeps repeated simulation runs independent, and truth table generation and fault coverage rely on this property.
+
+Two requirements remain only partly met.
+A new gate type needs one registration call in addition to its class, and the engine simulates expanded gates in place of modules.
+The largest gap with the reference paper is the absence of integer signal values and FPGA support.
+
+Future work could add multi-bit buses and integer truth tables.
+It could also let the engine evaluate modules directly and extend timing analysis with setup and hold times.
+These extensions would bring the system closer to the mixed-level model that the reference paper proposes.

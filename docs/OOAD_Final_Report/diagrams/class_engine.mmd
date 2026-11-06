@@ -1,0 +1,110 @@
+%%{init: {'theme':'neutral'}}%%
+classDiagram
+    direction TB
+    class SimulationApplicationService {
+        +simulate(netlist, waveformPath)
+        +validate(netlist)
+        +analyze(netlist)
+        +truthTable(netlist, inputs, outputs)
+        +equivalent(first, second, inputs, outputs)
+        +faultCoverage(netlist)
+    }
+    class SimulationFacade {
+        +executeSimulation(netlistPath, waveformPath)
+    }
+    class SimulationRunner {
+        +runString(netlist, waveformPath)
+        +runFile(path, waveformPath)
+    }
+    class NetlistParser {
+        +parseString(content)
+        +getComponents()
+        +getAllWires()
+        +getModules()
+    }
+    class ComponentFactory {
+        +createComponent(type, id, param, context)
+        +register(type, creator)
+    }
+    class ComponentCreator {
+        <<interface>>
+        +create(id, param)
+    }
+    class TopologyValidator {
+        +validateNoCombinationalLoops(components)
+        +findDriverConflict(components)
+    }
+    class SimulationContext {
+        +runSimulation()
+        +stepSimulation()
+        +addAssertion(assertion)
+    }
+    class EventEngine {
+        -eventQueue
+        -currentTime
+        -maxSimulationTime
+        +scheduleEvent(event)
+        +stepSimulation()
+    }
+    class SignalEvent {
+        -executionTime
+        -sequence
+        -newState
+        +compareTo(other)
+    }
+    class SimulationAssertion {
+        -time
+        -expectedState
+        +check()
+        +describe()
+    }
+    class SimulationDebugger {
+        +step()
+        +run()
+    }
+    class StaticTimingAnalyzer {
+        +analyze(components)
+    }
+    class TimingAnalysisResult {
+        +getCriticalPathDelay()
+        +getCriticalPath()
+        +getMaxClockFrequencyMHz()
+    }
+    class TruthTableGenerator {
+        +generate(netlist, inputs, outputs)
+    }
+    class CircuitEquivalenceChecker {
+        +compare(first, second, inputs, outputs)
+    }
+    class FaultCoverageAnalyzer {
+        +analyze(netlist)
+    }
+    class VcdLogger {
+        +monitorWire(wire)
+        +update(source, newState)
+        +exportFile()
+    }
+
+    SimulationFacade --> SimulationApplicationService
+    SimulationApplicationService --> SimulationRunner
+    SimulationApplicationService --> TruthTableGenerator
+    SimulationApplicationService --> CircuitEquivalenceChecker
+    SimulationApplicationService --> FaultCoverageAnalyzer
+    SimulationApplicationService --> StaticTimingAnalyzer
+    SimulationRunner --> NetlistParser
+    SimulationRunner --> TopologyValidator
+    SimulationRunner --> StaticTimingAnalyzer
+    SimulationRunner --> VcdLogger
+    SimulationRunner --> SimulationContext
+    StaticTimingAnalyzer ..> TimingAnalysisResult
+    CircuitEquivalenceChecker --> TruthTableGenerator
+    FaultCoverageAnalyzer --> NetlistParser
+    FaultCoverageAnalyzer --> SimulationContext
+    TruthTableGenerator --> NetlistParser
+    NetlistParser --> ComponentFactory
+    NetlistParser --> SimulationContext
+    ComponentFactory o-- ComponentCreator
+    SimulationContext "1" *-- "1" EventEngine
+    SimulationContext "1" o-- "*" SimulationAssertion
+    EventEngine "1" o-- "*" SignalEvent
+    SimulationDebugger --> SimulationContext

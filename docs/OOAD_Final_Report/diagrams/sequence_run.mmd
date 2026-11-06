@@ -1,0 +1,32 @@
+%%{init: {'theme':'neutral'}}%%
+sequenceDiagram
+    actor Engineer
+    participant UI as User Interface
+    participant Service as SimulationApplicationService
+    participant Runner as SimulationRunner
+    participant Parser as NetlistParser
+    participant Factory as ComponentFactory
+    participant Validator as TopologyValidator
+    participant Analyzer as StaticTimingAnalyzer
+    participant Context as SimulationContext
+
+    Engineer->>UI: Run simulation
+    UI->>Service: simulate(netlist, waveformPath)
+    Service->>Runner: runString(netlist, waveformPath)
+    Runner->>Parser: parseString(netlist)
+    loop for each component line
+        Parser->>Factory: createComponent(type, id, delay, context)
+        Factory-->>Parser: component
+    end
+    Parser-->>Runner: wires and components
+    Runner->>Validator: validateNoCombinationalLoops(components)
+    Validator-->>Runner: result
+    Runner->>Validator: findDriverConflict(components)
+    Validator-->>Runner: result
+    Runner->>Analyzer: analyze(components)
+    Analyzer-->>Runner: timing result
+    Runner->>Context: runSimulation()
+    Context-->>Runner: simulation complete
+    Runner-->>Service: SimulationResult
+    Service-->>UI: SimulationResult
+    UI-->>Engineer: Log, waveform, and assertion report

@@ -1,8 +1,81 @@
 \section{Use of Design Patterns}
 \label{sec:patterns}
+
+This section explains how the system applies design patterns to specific design problems.
+Table~\ref{tab:patterns} summarizes the patterns and the classes that take part in them.
+Figure~\ref{fig:classdomain} and Figure~\ref{fig:classengine} in Section~\ref{sec:design} show these classes in the wider class model.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Design patterns and their participating classes}
+\label{tab:patterns}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}p{6.2cm}}
+\toprule
+\textbf{Pattern} & \textbf{Design problem} & \textbf{Participating classes} \\
+\midrule
+Observer & Propagate a signal change to all connected components & \texttt{Wire}, \texttt{SignalObserver}, \texttt{InputPin}, \texttt{VcdLogger} \\
+Composite & Group gates and modules into a hierarchy & \texttt{DigitalComponent}, \texttt{Module}, \texttt{LogicGate} \\
+Factory Method & Create components from their netlist names & \texttt{ComponentFactory}, \texttt{ComponentCreator} \\
+State & Vary flip-flop behavior with its stored value & \texttt{SequentialComponent}, \texttt{MemoryState}, \texttt{LowState}, \texttt{HighState}, \texttt{UnknownState} \\
+Facade & Give three interfaces one entry point to the engine & \texttt{SimulationApplicationService}, \texttt{SimulationFacade} \\
+Dependency Injection & Keep simulation runs independent & \texttt{SimulationContext}, \texttt{EventEngine}, \texttt{NetlistParser} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Observer Pattern for Signal Propagation}
+
+The Observer pattern lets one object notify its dependent objects when its state changes \refGamma{}.
+In a circuit, a wire can feed any number of components, and the set of components differs for each circuit.
+In this system, each \texttt{Wire} keeps a list of \texttt{SignalObserver} objects and notifies them when its resolved value changes.
+An \texttt{InputPin} responds by asking its component to react.
+The \texttt{VcdLogger} responds by recording the change with its time.
+A wire therefore needs no knowledge of gates or of logging, and new observers require no change to the \texttt{Wire} class.
+The reference paper monitors net values with Smalltalk ValueHolders \refDezan{}, and this design realizes a similar idea in Java.
+
 \subsection{Composite Pattern for Circuit Hierarchy}
+
+The Composite pattern arranges objects into tree structures and lets clients treat single objects and groups uniformly \refGamma{}.
+The reference paper builds large circuits hierarchically from subcircuits \refDezan{}.
+In this system, \texttt{Module} and the primitive components share the base class \texttt{DigitalComponent}.
+A \texttt{Module} holds a list of subcomponents, which may include further modules.
+The parser creates one module for each macro instance and places its gates inside it.
+The schematic uses this hierarchy to draw a macro as one box or to show its contents.
+The engine simulates the expanded gates, so the hierarchy currently serves structure and display.
+
 \subsection{Factory Method Pattern for Component Creation}
+
+The Factory Method pattern moves the choice of a concrete class out of the code that uses the object \refGamma{}.
+The parser reads component names as text and must create the matching objects.
+\texttt{ComponentFactory} provides a parameterized factory method that receives this name and returns a \texttt{DigitalComponent}.
+A table maps each name to a \texttt{ComponentCreator}, so the factory needs no conditional logic for each type.
+The parser therefore depends only on the abstract component class.
+Adding a gate requires a new class and one registration call.
+
 \subsection{State Pattern for Memory Elements}
+
+The State pattern lets an object change its behavior when its internal state changes, by delegating that behavior to a state object \refGamma{}.
+A flip-flop reacts to a clock edge according to its stored value and its data input.
+The \texttt{SequentialComponent} class delegates this decision to a \texttt{MemoryState} object.
+\texttt{LowState}, \texttt{HighState}, and \texttt{UnknownState} each implement the transitions from one stored value.
+Figure~\ref{fig:state} presents these transitions.
+This structure replaces conditional logic on the stored value with one small class for each value.
+
 \subsection{Facade Pattern for Application Services}
+
+The Facade pattern provides one simple interface to a set of interfaces in a subsystem \refGamma{}.
+The desktop application, the command line tool, and the browser application all need the same operations.
+\texttt{SimulationApplicationService} offers these operations as methods that take netlist text and return results.
+\texttt{SimulationFacade} adds the console reporting that the command line tool uses.
+The user interfaces therefore contain no simulation logic, and all three produce the same results.
+
 \subsection{Dependency Injection in Place of the Planned Singleton}
+
+The project plan proposed the Singleton pattern, which restricts a class to one shared instance \refGamma{}, for the event engine.
+Implementation exposed a problem with this choice.
+Truth table generation, equivalence checking, and fault coverage each run many simulations, and a shared engine would carry state from one run to the next.
+This project therefore replaced the shared instance with Dependency Injection, in which an object receives the objects it needs from outside \refFowler{}.
+Each run creates a \texttt{SimulationContext}, which owns one \texttt{EventEngine} and the assertions of that run.
+The parser passes this context to every component that it creates.
+A default shared context remains in the code for constructors that receive no context, and the application services do not use it.

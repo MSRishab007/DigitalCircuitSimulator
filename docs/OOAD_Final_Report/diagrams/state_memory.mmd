@@ -1,0 +1,13 @@
+%%{init: {'theme':'neutral'}}%%
+stateDiagram-v2
+    direction LR
+    state "LowState (Q is 0)" as LowState
+    state "HighState (Q is 1)" as HighState
+    state "UnknownState (Q is X)" as UnknownState
+    [*] --> LowState : flip-flop created
+    LowState --> HighState : rising clock edge, D is 1
+    HighState --> LowState : rising clock edge, D is 0
+    LowState --> UnknownState : rising clock edge, D is X or Z
+    HighState --> UnknownState : rising clock edge, D is X or Z
+    UnknownState --> HighState : rising clock edge, D is 1
+    UnknownState --> LowState : rising clock edge, D is 0

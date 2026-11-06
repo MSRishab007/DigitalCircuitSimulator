@@ -1,4 +1,46 @@
 \section{Approach to the Solution}
+\label{sec:approach}
+
 \subsection{Development Methodology}
+
+This project followed an iterative and use case driven process in the style described by Blaha and Rumbaugh \refBlaha{}.
+Each iteration selected a group of use cases from Table~\ref{tab:requirements} and delivered them as running software.
+The early iterations addressed the features with the highest technical risk.
+These features were the wire and gate object model, the event queue, and the netlist parser.
+
+The later iterations built on this core.
+They added flip-flops, macros, fault injection, and waveform export, and then the analysis functions.
+The final iterations added the desktop interface and the browser version.
+Automated tests accompanied the engine and analysis features, so each iteration could detect faults in the earlier work.
+
 \subsection{Execution Pipeline}
+
+The system processes every circuit through the five phases that Figure~\ref{fig:activity} presents.
+Each phase has one responsibility, so a fault in one phase remains easy to locate.
+
+\begin{enumerate}
+\item \textbf{Parsing.} The parser reads the netlist text and creates the wire and component objects. It expands each macro into gates, and it records stimuli, faults, and assertions.
+\item \textbf{Validation.} The validator searches the object graph for combinational feedback loops and for wires with conflicting drivers. The system reports an error and stops when it finds either problem.
+\item \textbf{Initialization.} The system runs static timing analysis, attaches the waveform logger to every wire, and schedules the clock events. Stimuli from the netlist already wait in the event queue at this point.
+\item \textbf{Event loop.} The engine removes the earliest event and updates its target wire. The wire notifies the connected components, and each component that changes its output schedules a new event after its propagation delay. The loop ends when no event remains within the simulation time.
+\item \textbf{Output.} The system exports the waveform and returns the run statistics and the assertion results to the user interface.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[height=0.78\textheight]{activityDiagram.png}
+\caption{Activity diagram of the execution pipeline}
+\label{fig:activity}
+\end{figure}
+
 \subsection{Testing Strategy}
+
+The project verifies the software at four levels.
+The first level is a suite of 122 JUnit 5 test cases that exercise the domain model, the parser, the engine, and the analysis functions.
+The second level is a built-in self-check of 22 end-to-end scenarios, which any user can run from the command line.
+The third level is a smoke test that calls the compiled browser engine through its exported functions.
+The fourth level consists of scripted checks that drive the desktop interface and the browser page, and these checks are not part of the repository.
+
+GitHub Actions builds the project, runs the JUnit suite, and runs the browser smoke test on every push to the repository.
+JaCoCo \refJaCoCo{} measures the line, instruction, and branch coverage of the JUnit suite.
+Section~\ref{sec:coverage} reports these measurements.

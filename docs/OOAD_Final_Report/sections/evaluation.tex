@@ -1,8 +1,198 @@
 \section{Implementation and Evaluation}
 \label{sec:evaluation}
+
 \subsection{Implementation Environment}
+
+This project implements the system in Java 21 and builds it with Maven.
+The implementation uses Java Swing for the desktop interface, TeaVM 0.10.2 for the browser version, JUnit 5 for tests, and JaCoCo 0.8.14 for coverage.
+The source code is publicly available \refRepository{}.
+It contains about 8,300 lines of Java, of which about 3,150 belong to the desktop interface.
+
 \subsection{Sample Circuits and Results}
+
+Table~\ref{tab:samples} reports the results for the four main sample netlists in the repository.
+The columns give the number of components, the events processed, the critical path delay, the maximum clock frequency, and the fault coverage.
+These results depend on the delays and the stimuli written in each netlist.
+A low coverage figure therefore describes the stimuli of that sample, and it identifies inputs that a stronger test should add.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Results for the sample netlists}
+\label{tab:samples}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Netlist} & \textbf{Parts} & \textbf{Events} & \textbf{Path (ns)} & \textbf{Clock (MHz)} & \textbf{Coverage (\%)} \\
+\midrule
+Half adder & 5 & 25 & 30 & 33.3 & 100.0 \\
+Full adder & 11 & 22 & 60 & 16.7 & 46.4 \\
+Two-bit counter & 5 & 92 & 3 & 333.3 & 90.0 \\
+Tri-state buffer & 2 & 12 & 10 & 100.0 & 75.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:wavehalf} presents the waveform of the half adder as it receives all four input combinations.
+Table~\ref{tab:truth} lists the truth table that the system generated for this circuit, and it matches the expected half adder behavior.
+The fault coverage analysis reported all 14 stuck-at faults of this sample as detected.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{half_adder.png}
+\caption{Waveform of the half adder sample}
+\label{fig:wavehalf}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Generated truth table of the half adder and state table of the two-bit counter}
+\label{tab:truth}
+\begin{tabular}{cc|cc@{\hskip 1.5cm}cc|cc}
+\toprule
+\textbf{A} & \textbf{B} & \textbf{Carry} & \textbf{Sum} & \textbf{Q0} & \textbf{Q1} & \textbf{Q0+} & \textbf{Q1+} \\
+\midrule
+0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
+0 & 1 & 0 & 1 & 0 & 1 & 1 & 1 \\
+1 & 0 & 0 & 1 & 1 & 0 & 0 & 1 \\
+1 & 1 & 1 & 0 & 1 & 1 & 0 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:wavecounter} presents the two-bit counter.
+Each rising clock edge advances the count, and the state table in Table~\ref{tab:truth} agrees with this behavior.
+The columns Q0+ and Q1+ give the next state.
+The analysis detected nine of the ten faults in this sample.
+The remaining fault holds the clock at 1, which makes the flip-flop outputs unknown, and the analyzer counts only differences between known values.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{two_bit_counter.png}
+\caption{Waveform of the two-bit counter sample}
+\label{fig:wavecounter}
+\end{figure}
+
+Figure~\ref{fig:wavetri} presents a tri-state buffer that drives a memory bus.
+The bus shows Z while the buffer is disabled, and it follows the data line while the buffer is enabled.
+The inverter reads the disconnected bus as X, which matches the rule that a gate cannot determine a value from a floating input.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{testbench.png}
+\caption{Waveform of the tri-state buffer sample}
+\label{fig:wavetri}
+\end{figure}
+
+Three further checks exercised the validation and comparison functions.
+The checker reported the gate-level half adder sample and the library \texttt{HALF\_ADDER} macro as equivalent.
+A second circuit used an OR gate in place of the sum logic.
+The checker reported a counterexample at the input row where A and B are both 1.
+The validator rejected a test netlist that connected an AND gate and a NOT gate in an unclocked loop.
+
 \subsection{Test Coverage}
+\label{sec:coverage}
+
+All 122 JUnit test cases and all 22 self-checks pass on the final version of the code.
+Table~\ref{tab:coverage} reports the JaCoCo results for each package.
+The whole application reaches 55.8 percent line coverage, because the JUnit suite barely exercises the Swing interface in \texttt{simulator.gui}.
+The code outside this package reaches 91.3 percent line coverage, or 2,436 of 2,668 lines.
+This figure exceeds the 80 percent target for the domain logic and simulation engine.
+Branch coverage falls below 80 percent in \texttt{simulator.core} and \texttt{simulator.application}, so the coverage claim applies to line coverage.
+
+\begin{table}[H]
+\centering
+\small
+\caption{JaCoCo coverage by package}
+\label{tab:coverage}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Package} & \textbf{Lines} & \textbf{Line (\%)} & \textbf{Instruction (\%)} & \textbf{Branch (\%)} \\
+\midrule
+\texttt{simulator.schematic} & 563 & 98.2 & 98 & 93 \\
+\texttt{simulator.io} & 59 & 98.3 & 98 & 81 \\
+\texttt{simulator.application} & 404 & 95.5 & 97 & 72 \\
+\texttt{simulator.components} & 294 & 93.5 & 93 & 85 \\
+\texttt{simulator.engine} & 504 & 92.5 & 92 & 85 \\
+\texttt{simulator.core} & 135 & 91.1 & 89 & 78 \\
+\texttt{simulator.parser} & 392 & 90.6 & 90 & 83 \\
+\texttt{simulator.fault} & 5 & 80.0 & 72 & n/a \\
+\texttt{simulator} & 312 & 69.2 & 71 & 57 \\
+\texttt{simulator.gui} & 2,033 & 9.3 & 10 & 9 \\
+\midrule
+Total & 4,701 & 55.8 & 59 & 56 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:nfr} compares the non-functional requirements with the measured results.
+The speed test ran a clocked circuit with one flip-flop and one inverter, which produced 5,000,002 events.
+It ran six times with OpenJDK 21 on a virtual machine with two processors at 2.10 GHz.
+Throughput ranged from about 1.57 to 1.70 million events per second.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Non-functional requirements and results}
+\label{tab:nfr}
+\begin{tabular}{>{\raggedright\arraybackslash}p{6.4cm}>{\raggedright\arraybackslash}p{6.4cm}l}
+\toprule
+\textbf{Requirement} & \textbf{Result} & \textbf{Status} \\
+\midrule
+Process at least 10,000 events per second & About 1.57 to 1.70 million events per second & Met \\
+Add a gate type through one class & One new class and one registration call & Partly met \\
+Evaluate modules and gates uniformly & Shared base class, with simulation on expanded gates & Partly met \\
+Reach 80 percent coverage of the domain logic and engine & 91.3 percent line coverage outside \texttt{simulator.gui} & Met \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Comparison with the Reference Paper}
+
+Table~\ref{tab:comparison} compares this system with the reference paper \refDezan{}.
+The system implements the combinational, sequential, and hierarchical circuit models.
+It leaves out the FPGA-specific parts of the paper, and it adds timing and fault features that the paper does not describe.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Comparison with the reference paper}
+\label{tab:comparison}
+\begin{tabular}{>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{6.8cm}l}
+\toprule
+\textbf{Feature} & \textbf{This system} & \textbf{Status} \\
+\midrule
+Functional blocks for combinational logic & \texttt{FUNC} expressions and gate classes & Implemented \\
+Truth tables derived from circuits & \texttt{TruthTableGenerator} & Implemented \\
+Equivalence through equal truth tables & \texttt{CircuitEquivalenceChecker} & Implemented \\
+Sequential circuits with internal variables & Flip-flops with generated state tables & Implemented \\
+Hierarchical composition & Macros and \texttt{Module} objects & Implemented \\
+Nets with monitored values & Observer pattern on \texttt{Wire} & Implemented \\
+Resource calculation & Component and wire counts, without FPGA cells & Partial \\
+One object with several abstraction levels & Separate functional and structural objects & Partial \\
+Truth tables with integer values & Single-bit values only & Omitted \\
+Graphical structural editor & Text netlists with a generated schematic & Omitted \\
+FPGA placement, routing, and mapping & None & Omitted \\
+Propagation delays and event queue & \texttt{EventEngine} and \texttt{SignalEvent} & Added \\
+Stuck-at faults and fault coverage & \texttt{FaultInjector} and \texttt{FaultCoverageAnalyzer} & Added \\
+Static timing analysis & \texttt{StaticTimingAnalyzer} & Added \\
+Assertions and event stepping & \texttt{SimulationAssertion} and \texttt{SimulationDebugger} & Added \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Known Limitations}
 \label{sec:limitations}
+
+The present system has the following limitations.
+
+\begin{itemize}
+\item Each wire carries one bit, so the system has no multi-bit buses or integer truth tables.
+\item The engine simulates expanded gates, so modules do not take part in event processing.
+\item The FPGA placement, routing, and mapping of the reference paper fall outside the scope of this project.
+\item Truth tables accept at most 16 inputs and flip-flops in total, because the table size doubles with each one.
+\item The timing analysis omits flip-flop setup and hold times, and it does not identify paths that can never become active.
+\item Stimuli scheduled for the same instant apply one after another. An intermediate combination can therefore produce a pulse of zero duration in the waveform, as the half adder sample shows at 110 ns.
+\item The fault coverage analysis counts only differences between known values, so a fault that produces only X counts as undetected.
+\item The scripted interface checks live outside the repository, so the JaCoCo figures do not include them.
+\end{itemize}

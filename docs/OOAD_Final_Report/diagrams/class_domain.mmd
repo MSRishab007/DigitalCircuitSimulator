@@ -1,0 +1,98 @@
+%%{init: {'theme':'neutral'}}%%
+classDiagram
+    direction TB
+    class SignalObserver {
+        <<interface>>
+        +update(source, newState)
+    }
+    class VoltageState {
+        <<enumeration>>
+        HIGH
+        LOW
+        UNKNOWN
+        HIGH_Z
+    }
+    class Wire {
+        -wireId
+        -currentState
+        -driverStates
+        -stuckAtState
+        +addObserver(observer)
+        +drive(driver, newState)
+        +release(driver)
+        +injectStuckAtFault(state)
+    }
+    class InputPin {
+        -currentState
+        +update(source, newState)
+    }
+    class OutputPin {
+        +connect(wire)
+        +scheduleSignal(time, state)
+    }
+    class DigitalComponent {
+        <<abstract>>
+        #componentId
+        +evaluate()*
+        +inputChanged(pin, newState)
+    }
+    class LogicGate {
+        <<abstract>>
+        #propagationDelay
+        #lastCalculatedState
+        #calculateBooleanLogic()*
+        +evaluate()
+    }
+    class SimpleGates {
+        <<group>>
+        AndGate, OrGate, NotGate
+        NandGate, NorGate
+        XorGate, XnorGate
+    }
+    class TriStateBuffer
+    class FunctionalBlock
+    class BooleanExpression {
+        +evaluate(values)
+    }
+    class Clock {
+        -halfPeriod
+        +generateClockPulses()
+    }
+    class SequentialComponent {
+        -previousClockState
+        +clockPulse()
+        +evaluate()
+    }
+    class MemoryState {
+        <<interface>>
+        +handleClockPulse(dataInput)
+        +getOutputVoltage()
+    }
+    class LowState
+    class HighState
+    class UnknownState
+    class Module {
+        -typeName
+        +addSubComponent(component)
+        +getSubComponents()
+    }
+
+    SignalObserver <|.. InputPin
+    Wire "1" o-- "*" SignalObserver : notifies
+    Wire ..> VoltageState
+    DigitalComponent "1" *-- "*" InputPin
+    DigitalComponent "1" *-- "*" OutputPin
+    OutputPin "*" --> "0..1" Wire : drives
+    DigitalComponent <|-- LogicGate
+    DigitalComponent <|-- Clock
+    DigitalComponent <|-- SequentialComponent
+    DigitalComponent <|-- Module
+    Module "1" o-- "*" DigitalComponent : contains
+    LogicGate <|-- SimpleGates
+    LogicGate <|-- TriStateBuffer
+    LogicGate <|-- FunctionalBlock
+    FunctionalBlock --> BooleanExpression
+    SequentialComponent --> MemoryState : current state
+    MemoryState <|.. LowState
+    MemoryState <|.. HighState
+    MemoryState <|.. UnknownState

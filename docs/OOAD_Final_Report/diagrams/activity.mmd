@@ -1,0 +1,27 @@
+flowchart TD
+    start((" ")) --> read["Read the netlist text"]
+    read --> parse["Create wires and components<br/>and expand macros"]
+    parse --> syntax{"Is the netlist valid?"}
+    syntax -- "No" --> error["Report the error"]
+    syntax -- "Yes" --> loops{"Is there a feedback loop<br/>or a driver conflict?"}
+    loops -- "Yes" --> error
+    loops -- "No" --> timing["Run static timing analysis"]
+    timing --> logger["Attach the waveform logger<br/>to every wire"]
+    logger --> clock["Schedule the clock events"]
+    clock --> pending{"Is an event due within<br/>the simulation time?"}
+    pending -- "Yes" --> assertions["Check the assertions that<br/>precede the next event"]
+    assertions --> dequeue["Remove the earliest event<br/>and update its wire"]
+    dequeue --> notify["Notify the observers of the wire"]
+    notify --> evaluate["Evaluate the affected components"]
+    evaluate --> changed{"Did an output change?"}
+    changed -- "Yes" --> schedule["Schedule a new event after<br/>the propagation delay"]
+    schedule --> pending
+    changed -- "No" --> pending
+    pending -- "No" --> export["Export the waveform and<br/>prepare the assertion report"]
+    export --> present["Present the results"]
+    present --> finish(((" ")))
+    error --> finish
+    classDef box fill:#ffffff,stroke:#1f2328,color:#1f2328
+    classDef terminal fill:#1f2328,stroke:#1f2328,color:#1f2328
+    class read,parse,syntax,error,loops,timing,logger,clock,pending,assertions,dequeue,notify,evaluate,changed,schedule,export,present box
+    class start,finish terminal

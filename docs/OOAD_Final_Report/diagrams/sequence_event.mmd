@@ -1,0 +1,25 @@
+%%{init: {'theme':'neutral'}}%%
+sequenceDiagram
+    participant Context as SimulationContext
+    participant Engine as EventEngine
+    participant Wire
+    participant Logger as VcdLogger
+    participant Pin as InputPin
+    participant Gate as LogicGate
+
+    Context->>Engine: stepSimulation()
+    Engine->>Engine: remove the earliest SignalEvent
+    Engine->>Wire: drive(driver, newState)
+    Wire->>Wire: resolveDrivers()
+    alt the resolved value changed
+        Wire->>Logger: update(wire, value)
+        loop for each connected input pin
+            Wire->>Pin: update(wire, value)
+            Pin->>Gate: inputChanged(pin, value)
+            Gate->>Gate: calculateBooleanLogic()
+            opt the output value changed
+                Gate->>Engine: scheduleEvent(time + delay, output wire, value)
+            end
+        end
+    end
+    Engine-->>Context: true while events remain
