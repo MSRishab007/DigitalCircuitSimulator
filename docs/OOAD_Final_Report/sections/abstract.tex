@@ -1,0 +1,19 @@
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+Digital circuits form the basis of computers and most modern electronic devices.
+Building a physical prototype for each design change is slow and costly, so engineers test designs in software simulators before manufacture.
+This project implements the circuit modeling part of the object-oriented approach proposed by Dezan, Lagadec, and Pottier as a simulator written in Java.
+In this approach, software objects represent hardware elements such as logic gates and memory elements.
+
+A user describes a circuit in a text file called a netlist.
+The simulator calculates how the signals in the circuit change over time.
+It presents the results as graphs called waveforms, as schematic diagrams, and as truth tables.
+The system extends the original approach with signal delays, simulated hardware faults, timing analysis, and a measure of how many faults a test can detect.
+It runs as a desktop application, a command line tool, and a browser application, and all three share one simulation engine.
+
+An automated suite of 122 tests covers 91.3 percent of the source code lines outside the desktop interface.
+This figure exceeds the 80 percent target that the project plan set for the domain logic and simulation engine.
+
+\vspace{6pt}
+\textbf{Keywords.} Digital circuit simulation, discrete-event simulation, object-oriented design, design patterns, fault injection.

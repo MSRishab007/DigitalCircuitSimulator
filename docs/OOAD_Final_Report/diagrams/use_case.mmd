@@ -1,0 +1,50 @@
+flowchart LR
+    engineer(("«actor»<br/>Electronics<br/>Engineer"))
+    viewer(("«actor»<br/>Waveform<br/>Viewer"))
+
+    uc06(["UC-06 Execute Simulation"])
+    uc07(["UC-07 Inject Hardware Fault"])
+    uc08(["UC-08 Export Waveform"])
+    uc09(["UC-09 Generate Truth Table"])
+    uc10(["UC-10 Check Equivalence"])
+    uc11(["UC-11 Analyze Timing"])
+    uc12(["UC-12 Measure Fault Coverage"])
+    uc13(["UC-13 View Schematic"])
+    uc14(["UC-14 Verify Assertions"])
+    uc15(["UC-15 Step Through Events"])
+
+    uc01(["UC-01 Parse Netlist"])
+    uc02(["UC-02 Validate Topology"])
+    uc03(["UC-03 Evaluate Gates"])
+    uc04(["UC-04 Update Flip-Flops"])
+    uc05(["UC-05 Expand Macro Modules"])
+
+    engineer --- uc10
+    engineer --- uc09
+    engineer --- uc11
+    engineer --- uc13
+    engineer --- uc12
+    engineer --- uc15
+    engineer --- uc06
+
+    uc02 -. "«include»" .-> uc01
+    uc06 -. "«include»" .-> uc02
+    uc06 -. "«include»" .-> uc03
+    uc06 -. "«include»" .-> uc04
+    uc01 -. "«include»" .-> uc05
+    uc15 -. "«include»" .-> uc06
+    uc07 -. "«extend»" .-> uc06
+    uc14 -. "«extend»" .-> uc06
+    uc08 -. "«extend»" .-> uc06
+    uc12 -. "«include»" .-> uc06
+    uc09 -. "«include»" .-> uc01
+    uc10 -. "«include»" .-> uc09
+    uc11 -. "«include»" .-> uc01
+    uc13 -. "«include»" .-> uc01
+
+    uc08 --- viewer
+
+    classDef useCase fill:#ffffff,stroke:#1f2328,color:#1f2328
+    classDef actor fill:#ffffff,stroke:#1f2328,stroke-width:2px,color:#1f2328
+    class uc01,uc02,uc03,uc04,uc05,uc06,uc07,uc08,uc09,uc10,uc11,uc12,uc13,uc14,uc15 useCase
+    class engineer,viewer actor
